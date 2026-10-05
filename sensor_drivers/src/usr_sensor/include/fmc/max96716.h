@@ -114,6 +114,8 @@ RegI2CT max96716_Des1_init[] = {
 	{0x1E00, 0xF5},
 	{MAX929X_TABLE_WAIT, MAX96716_DPLL_LOCK_WAIT_MS},
 	{0x0331, 0xF0},  /* MIPI_PHY1 HS timing (t_hs_prep/przero); null-effect, retained from commit 2 */
+	{0x1449, 0xF5},  /* errata #10: RLMS49 ErrChPwrUp=1, force Error Channel A always-on (Required for 6Gbps multi-link) */
+	{0x1549, 0xF5},  /* errata #10: force Error Channel B always-on */
 	{0x0161, 0x31},
 	{0x0316, 0x80},
 	{0x0317, 0xBC},
@@ -158,6 +160,8 @@ RegI2CT max96716_Des2_init[] = {
 	{0x1E00, 0xF5},
 	{MAX929X_TABLE_WAIT, MAX96716_DPLL_LOCK_WAIT_MS},
 	{0x0331, 0xF0},  /* MIPI_PHY1 HS timing (t_hs_prep/przero); null-effect, retained from commit 2 */
+	{0x1449, 0xF5},  /* errata #10: RLMS49 ErrChPwrUp=1, force Error Channel A always-on (Required for 6Gbps multi-link) */
+	{0x1549, 0xF5},  /* errata #10: force Error Channel B always-on */
 	{0x0161, 0x31},
 	{0x0316, 0x80},
 	{0x0317, 0xBC},
@@ -206,6 +210,8 @@ RegI2CT max96716_Des3_init[] = {
 	{0x1E00, 0xF5},
 	{MAX929X_TABLE_WAIT, MAX96716_DPLL_LOCK_WAIT_MS},
 	{0x0331, 0xF0},  /* MIPI_PHY1 HS timing (t_hs_prep/przero); null-effect, retained from commit 2 */
+	{0x1449, 0xF5},  /* errata #10: RLMS49 ErrChPwrUp=1, force Error Channel A always-on (Required for 6Gbps multi-link) */
+	{0x1549, 0xF5},  /* errata #10: force Error Channel B always-on */
 	{0x0316, 0xAC},
 	{0x0317, 0xBB},
 	{0x0318, 0xB0},
@@ -249,6 +255,8 @@ RegI2CT max96716_Des3_init[] = {
 	{0x1E00, 0xF5},
 	{MAX929X_TABLE_WAIT, MAX96716_DPLL_LOCK_WAIT_MS},
 	{0x0331, 0xF0},  /* MIPI_PHY1 HS timing (t_hs_prep/przero); null-effect, retained from commit 2 */
+	{0x1449, 0xF5},  /* errata #10: RLMS49 ErrChPwrUp=1, force Error Channel A always-on (Required for 6Gbps multi-link) */
+	{0x1549, 0xF5},  /* errata #10: force Error Channel B always-on */
 	{0x0161, 0x31},
 	{0x0316, 0x80},
 	{0x0317, 0xBC},
@@ -293,6 +301,8 @@ RegI2CT max96716_Des4_init[] = {
 	{0x1E00, 0xF5},
 	{MAX929X_TABLE_WAIT, MAX96716_DPLL_LOCK_WAIT_MS},
 	{0x0331, 0xF0},  /* MIPI_PHY1 HS timing (t_hs_prep/przero); null-effect, retained from commit 2 */
+	{0x1449, 0xF5},  /* errata #10: RLMS49 ErrChPwrUp=1, force Error Channel A always-on (Required for 6Gbps multi-link) */
+	{0x1549, 0xF5},  /* errata #10: force Error Channel B always-on */
 	{0x0161, 0x31},
 	{0x0316, 0x80},
 	{0x0317, 0xBC},
@@ -337,6 +347,8 @@ RegI2CT max96716_Des5_init[] = {
 	{0x1E00, 0xF5},
 	{MAX929X_TABLE_WAIT, MAX96716_DPLL_LOCK_WAIT_MS},
 	{0x0331, 0xF0},  /* MIPI_PHY1 HS timing (t_hs_prep/przero); null-effect, retained from commit 2 */
+	{0x1449, 0xF5},  /* errata #10: RLMS49 ErrChPwrUp=1, force Error Channel A always-on (Required for 6Gbps multi-link) */
+	{0x1549, 0xF5},  /* errata #10: force Error Channel B always-on */
 	{0x0161, 0x31},
 	{0x0316, 0x80},
 	{0x0317, 0xBC},
@@ -384,6 +396,8 @@ RegI2CT max96716_Des6_init[] = {
 	{0x1E00, 0xF5},
 	{MAX929X_TABLE_WAIT, MAX96716_DPLL_LOCK_WAIT_MS},
 	{0x0331, 0xF0},  /* MIPI_PHY1 HS timing (t_hs_prep/przero); null-effect, retained from commit 2 */
+	{0x1449, 0xF5},  /* errata #10: RLMS49 ErrChPwrUp=1, force Error Channel A always-on (Required for 6Gbps multi-link) */
+	{0x1549, 0xF5},  /* errata #10: force Error Channel B always-on */
 	{0x0161, 0x31},
 	{0x0316, 0xAC},
 	{0x0317, 0xBB},
@@ -436,6 +450,8 @@ RegI2CT max96716_Des7_init[] = {
 	{0x1E00, 0xF5},
 	{MAX929X_TABLE_WAIT, MAX96716_DPLL_LOCK_WAIT_MS},
 	{0x0331, 0xF0},  /* MIPI_PHY1 HS timing (t_hs_prep/przero); null-effect, retained from commit 2 */
+	{0x1449, 0xF5},  /* errata #10: RLMS49 ErrChPwrUp=1, force Error Channel A always-on (Required for 6Gbps multi-link) */
+	{0x1549, 0xF5},  /* errata #10: force Error Channel B always-on */
 	{0x0161, 0x31},
 	{0x0316, 0x80},
 	{0x0317, 0xBC},
@@ -483,6 +499,8 @@ RegI2CT max96716_Des2_revserse_splitter_init[] = {
 	{0x1E00, 0xF5},
 	{MAX929X_TABLE_WAIT, MAX96716_DPLL_LOCK_WAIT_MS},
 	{0x0331, 0xF0},  /* MIPI_PHY1 HS timing (t_hs_prep/przero); null-effect, retained from commit 2 */
+	{0x1449, 0xF5},  /* errata #10: RLMS49 ErrChPwrUp=1, force Error Channel A always-on (Required for 6Gbps multi-link) */
+	{0x1549, 0xF5},  /* errata #10: force Error Channel B always-on */
 	{0x0316, 0xAC},
 	{0x0317, 0xBC},
 	{0x0318, 0xB0},
