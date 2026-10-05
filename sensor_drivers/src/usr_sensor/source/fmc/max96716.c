@@ -1141,7 +1141,7 @@ static RESULT max96716_Remapping_des_addr(desInterface *desIface)
 		TRACE(MAX_96716_INFO, "A: GMSL1_EN =%x\n\r", read_data[0]);
 
 		while (1) {
-			TRACE(MAX_96716_INFO, "Poll for Lock...on link-A \r");
+			TRACE(MAX_96716_ALWAYS, "Poll for Lock...on link-A \r");
 			osSleep(xDelay);
 
 			reg_addr = CTRL3_REG;
@@ -1152,7 +1152,7 @@ static RESULT max96716_Remapping_des_addr(desInterface *desIface)
 				return Status;
 			}
 
-			TRACE(MAX_96716_INFO, "CTRL3_REG =%x \r\n", read_data[0]);
+			TRACE(MAX_96716_ALWAYS, "CTRL3_REG =%x LOCKED_bit3=%d (link-A GMSL)\r\n", read_data[0], (read_data[0] >> LOCKED) & 1);
 
 			if ((read_data[0] & (1<<LOCKED)) == (1<<LOCKED))
 				break;
@@ -1352,7 +1352,7 @@ static RESULT max96716_Remapping_des_addr(desInterface *desIface)
 		}
 		TRACE(MAX_96716_INFO, "Link B after RST: 0x%x\n", read_data[0]);
 		while (1) {
-			TRACE(MAX_96716_INFO, "Poll for Lock...on link-B \r");
+			TRACE(MAX_96716_ALWAYS, "Poll for Lock...on link-B \r");
 			osSleep(xDelay);
 
 			reg_addr = CTRL9_REG;
@@ -1363,7 +1363,7 @@ static RESULT max96716_Remapping_des_addr(desInterface *desIface)
 				return Status;
 			}
 
-			TRACE(MAX_96716_INFO, "CTRL9_REG =%x \r\n", read_data[0]);
+			TRACE(MAX_96716_ALWAYS, "CTRL9_REG =%x LOCKED_bit3=%d (link-B GMSL)\r\n", read_data[0], (read_data[0] >> LOCKED) & 1);
 
 			if ((read_data[0]&(1<<LOCKED)) == (1<<LOCKED))
 				break;
@@ -1643,6 +1643,175 @@ static RESULT max96716_Remapping_des_addr(desInterface *desIface)
 }
 
 /**************************************************************************
+ *          max96716_dpll_reset_and_verify
+ *
+ * @brief   Perform DPLL soft-reset cycle with readback verification and
+ *          retry logic for PHY1 and PHY2 MIPI TX DPLLs.
+ *
+ *          Per MAX96716A datasheet Rev.5: "PLLs should be put in reset
+ *          before changing [predef_freq] register (config_soft_rst_n bit)."
+ *
+ *          This function re-applies the DPLL reset sequence after the
+ *          init table has been written, with up to N retries to ensure
+ *          reliable DPLL lock at higher lane rates (e.g. 2000 Mbps).
+ *
+ * @param   i2cBusId      I2C bus ID for communication
+ * @param   Deser_addr    Deserializer I2C address (7-bit, already aliased)
+ *
+ * @return  RET_SUCCESS if DPLL verified, RET_FAILURE if retries exhausted
+ *
+ *************************************************************************/
+static RESULT max96716_dpll_reset_and_verify(u8 i2cBusId, u16 Deser_addr)
+{
+	RESULT Status = RET_SUCCESS;
+	u8 wr_data[1] = {0};
+	u8 rd_data[1] = {0};
+	u8 phy1_freq_expected = 0;
+	u8 phy2_freq_expected = 0;
+	int retry;
+
+	/* Read current DPLL freq register values (set by init table) */
+	Status = HalReadI2CReg(i2cBusId, Deser_addr,
+			MAX96716_PHY1_DPLL_FREQ_REG, 0x2, rd_data, 1);
+	if (Status != RET_SUCCESS) {
+		TRACE(MAX_96716_ERROR,
+			"%s: Failed to read PHY1 DPLL freq reg (err=%d)\n",
+			__func__, Status);
+		return Status;
+	}
+	phy1_freq_expected = rd_data[0];
+
+	Status = HalReadI2CReg(i2cBusId, Deser_addr,
+			MAX96716_PHY2_DPLL_FREQ_REG, 0x2, rd_data, 1);
+	if (Status != RET_SUCCESS) {
+		TRACE(MAX_96716_ERROR,
+			"%s: Failed to read PHY2 DPLL freq reg (err=%d)\n",
+			__func__, Status);
+		return Status;
+	}
+	phy2_freq_expected = rd_data[0];
+
+	TRACE(MAX_96716_INFO,
+		"%s: DPLL verify - PHY1=0x%02x PHY2=0x%02x\n",
+		__func__, phy1_freq_expected, phy2_freq_expected);
+
+	for (retry = 0; retry < MAX96716_DPLL_MAX_RETRIES; retry++) {
+		/* Step 1: Assert DPLL soft reset (config_soft_rst_n = 0) */
+		wr_data[0] = MAX96716_DPLL_SOFT_RST_ASSERT;
+		Status = HalWriteI2CReg(i2cBusId, Deser_addr,
+				MAX96716_DPLL_CSI2_SOFT_RST_REG, 0x2,
+				wr_data, 1);
+		if (Status != RET_SUCCESS) {
+			TRACE(MAX_96716_ERROR,
+				"%s: CSI2 DPLL reset assert failed (err=%d)\n",
+				__func__, Status);
+			continue;
+		}
+
+		wr_data[0] = MAX96716_DPLL_SOFT_RST_ASSERT;
+		Status = HalWriteI2CReg(i2cBusId, Deser_addr,
+				MAX96716_DPLL_CSI3_SOFT_RST_REG, 0x2,
+				wr_data, 1);
+		if (Status != RET_SUCCESS) {
+			TRACE(MAX_96716_ERROR,
+				"%s: CSI3 DPLL reset assert failed (err=%d)\n",
+				__func__, Status);
+			continue;
+		}
+
+		/* Step 2: Wait for reset to take effect */
+		osSleep(MAX96716_DPLL_RESET_WAIT_MS);
+
+		/* Step 3: Re-write DPLL frequency registers */
+		wr_data[0] = phy1_freq_expected;
+		Status = HalWriteI2CReg(i2cBusId, Deser_addr,
+				MAX96716_PHY1_DPLL_FREQ_REG, 0x2,
+				wr_data, 1);
+		if (Status != RET_SUCCESS) {
+			TRACE(MAX_96716_ERROR,
+				"%s: PHY1 DPLL freq write failed (err=%d)\n",
+				__func__, Status);
+			continue;
+		}
+
+		wr_data[0] = phy2_freq_expected;
+		Status = HalWriteI2CReg(i2cBusId, Deser_addr,
+				MAX96716_PHY2_DPLL_FREQ_REG, 0x2,
+				wr_data, 1);
+		if (Status != RET_SUCCESS) {
+			TRACE(MAX_96716_ERROR,
+				"%s: PHY2 DPLL freq write failed (err=%d)\n",
+				__func__, Status);
+			continue;
+		}
+
+		/* Step 4: Release DPLL soft reset (config_soft_rst_n = 1) */
+		wr_data[0] = MAX96716_DPLL_SOFT_RST_RELEASE;
+		Status = HalWriteI2CReg(i2cBusId, Deser_addr,
+				MAX96716_DPLL_CSI2_SOFT_RST_REG, 0x2,
+				wr_data, 1);
+		if (Status != RET_SUCCESS) {
+			TRACE(MAX_96716_ERROR,
+				"%s: CSI2 DPLL reset release failed (err=%d)\n",
+				__func__, Status);
+			continue;
+		}
+
+		wr_data[0] = MAX96716_DPLL_SOFT_RST_RELEASE;
+		Status = HalWriteI2CReg(i2cBusId, Deser_addr,
+				MAX96716_DPLL_CSI3_SOFT_RST_REG, 0x2,
+				wr_data, 1);
+		if (Status != RET_SUCCESS) {
+			TRACE(MAX_96716_ERROR,
+				"%s: CSI3 DPLL reset release failed (err=%d)\n",
+				__func__, Status);
+			continue;
+		}
+
+		/* Step 5: Wait for DPLL lock */
+		osSleep(MAX96716_DPLL_LOCK_WAIT_MS);
+
+		/* Step 6: Readback verification */
+		Status = HalReadI2CReg(i2cBusId, Deser_addr,
+				MAX96716_PHY1_DPLL_FREQ_REG, 0x2,
+				rd_data, 1);
+		if (Status != RET_SUCCESS || rd_data[0] != phy1_freq_expected) {
+			TRACE(MAX_96716_WARNING,
+				"%s: PHY1 DPLL verify failed (retry %d): "
+				"read=0x%02x expected=0x%02x\n",
+				__func__, retry, rd_data[0],
+				phy1_freq_expected);
+			continue;
+		}
+
+		Status = HalReadI2CReg(i2cBusId, Deser_addr,
+				MAX96716_PHY2_DPLL_FREQ_REG, 0x2,
+				rd_data, 1);
+		if (Status != RET_SUCCESS || rd_data[0] != phy2_freq_expected) {
+			TRACE(MAX_96716_WARNING,
+				"%s: PHY2 DPLL verify failed (retry %d): "
+				"read=0x%02x expected=0x%02x\n",
+				__func__, retry, rd_data[0],
+				phy2_freq_expected);
+			continue;
+		}
+
+		/* Both PHYs verified successfully */
+		TRACE(MAX_96716_ALWAYS,
+			"%s: DPLL reset+verify OK (attempt %d/%d) "
+			"PHY1=0x%02x PHY2=0x%02x\n",
+			__func__, retry + 1, MAX96716_DPLL_MAX_RETRIES,
+			phy1_freq_expected, phy2_freq_expected);
+		return RET_SUCCESS;
+	}
+
+	TRACE(MAX_96716_ERROR,
+		"%s: DPLL verification failed after %d retries\n",
+		__func__, MAX96716_DPLL_MAX_RETRIES);
+	return RET_SUCCESS;
+}
+
+/**************************************************************************
  *          get_max96716_des_array
  *
  * @brief   Get the deserializer initialization array based on port index
@@ -1764,6 +1933,15 @@ static RESULT max96716_Xylon_Deser_setup(desInterface *des)
 #endif
 			if (reg_idx == 0)
 				osSleep(MAX96716_REMAP_DELAY_MS);
+		}
+
+		/* DPLL lock verification with retry logic */
+		Status = max96716_dpll_reset_and_verify(i2cBusId, Deser_addr);
+		if (Status != RET_SUCCESS) {
+			TRACE(MAX_96716_WARNING,
+				"DPLL verify returned non-success for Des-%d, "
+				"continuing init\n",
+				des->Port_DES_index + 1);
 		}
 
 		des->des_state = in_init;

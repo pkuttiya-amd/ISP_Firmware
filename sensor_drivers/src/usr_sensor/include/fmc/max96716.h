@@ -76,12 +76,45 @@
 #define MAX96716_SER_GPIO_REG_C			(0x8B)
 #define MAX96716_SER_GPIO_DOUBLE_MODE_VAL	(0x11)
 
+/*
+ * MIPI TX DPLL Soft-Reset Registers (config_soft_rst_n, bit 0)
+ *
+ * Per MAX96716A datasheet Rev.5: "PLLs should be put in reset before
+ * changing [predef_freq] register (config_soft_rst_n bit)."
+ *
+ * Proper DPLL reconfiguration sequence:
+ *   1. Assert soft reset (clear bit 0 → write 0xF4)
+ *   2. Wait for reset to settle (~10 ms)
+ *   3. Write new DPLL frequency (BACKTOP25/28 registers)
+ *   4. Release soft reset (set bit 0 → write 0xF5)
+ *   5. Wait for DPLL lock (~50 ms)
+ */
+#define MAX96716_DPLL_CSI2_SOFT_RST_REG		(0x1D00) /* PHY1 DPLL */
+#define MAX96716_DPLL_CSI3_SOFT_RST_REG		(0x1E00) /* PHY2 DPLL */
+#define MAX96716_DPLL_SOFT_RST_ASSERT		(0xF4)   /* bit 0 = 0 */
+#define MAX96716_DPLL_SOFT_RST_RELEASE		(0xF5)   /* bit 0 = 1 */
+#define MAX96716_DPLL_RESET_WAIT_MS		(10)
+#define MAX96716_DPLL_LOCK_WAIT_MS		(50)
+#define MAX96716_DPLL_MAX_RETRIES		(3)
+
+/* MIPI TX DPLL Frequency Registers (phyN_csi_tx_dpll_predef_freq) */
+#define MAX96716_PHY1_DPLL_FREQ_REG		(0x0320) /* BACKTOP25 */
+#define MAX96716_PHY2_DPLL_FREQ_REG		(0x0323) /* BACKTOP28 */
+
 RegI2CT max96716_Des1_init[] = {
 	{MAX929X_TABLE_WAIT, MAX929X_TABLE_WAIT_MS},
-	{0x0161, 0x31},
+	/* DPLL soft-reset sequence: assert reset before freq change */
+	{0x1D00, 0xF4},
+	{0x1E00, 0xF4},
+	{MAX929X_TABLE_WAIT, MAX96716_DPLL_RESET_WAIT_MS},
 	{0x0320, 0x34},
 	{0x0323, 0x34},
-	{0x0331, 0xF0},  /* MIPI_PHY1: t_hs_przero=0b11, t_hs_prep=0b11 (max HS_prepare/HS_zero margin for 2000Mbps) */
+	/* Release DPLL soft-reset and wait for lock */
+	{0x1D00, 0xF5},
+	{0x1E00, 0xF5},
+	{MAX929X_TABLE_WAIT, MAX96716_DPLL_LOCK_WAIT_MS},
+	{0x0331, 0xF0},  /* MIPI_PHY1 HS timing (t_hs_prep/przero); null-effect, retained from commit 2 */
+	{0x0161, 0x31},
 	{0x0316, 0x80},
 	{0x0317, 0xBC},
 	{0x0318, 0x00},
@@ -114,10 +147,18 @@ RegI2CT max96716_Des1_init[] = {
 
 RegI2CT max96716_Des2_init[] = {
 	{MAX929X_TABLE_WAIT, MAX929X_TABLE_WAIT_MS},
-	{0x0161, 0x31},
+	/* DPLL soft-reset sequence: assert reset before freq change */
+	{0x1D00, 0xF4},
+	{0x1E00, 0xF4},
+	{MAX929X_TABLE_WAIT, MAX96716_DPLL_RESET_WAIT_MS},
 	{0x0320, 0x34},
 	{0x0323, 0x34},
-	{0x0331, 0xF0},  /* MIPI_PHY1: t_hs_przero=0b11, t_hs_prep=0b11 (max HS_prepare/HS_zero margin for 2000Mbps) */
+	/* Release DPLL soft-reset and wait for lock */
+	{0x1D00, 0xF5},
+	{0x1E00, 0xF5},
+	{MAX929X_TABLE_WAIT, MAX96716_DPLL_LOCK_WAIT_MS},
+	{0x0331, 0xF0},  /* MIPI_PHY1 HS timing (t_hs_prep/przero); null-effect, retained from commit 2 */
+	{0x0161, 0x31},
 	{0x0316, 0x80},
 	{0x0317, 0xBC},
 	{0x0318, 0x00},
@@ -154,8 +195,17 @@ RegI2CT max96716_Des3_init[] = {
 	{0x0051, 0x01},
 	{0x0052, 0x02},
 	{0x0053, 0x03},
+	/* DPLL soft-reset sequence: assert reset before freq change */
+	{0x1D00, 0xF4},
+	{0x1E00, 0xF4},
+	{MAX929X_TABLE_WAIT, MAX96716_DPLL_RESET_WAIT_MS},
 	{0x0320, 0x34},
 	{0x0323, 0x20},
+	/* Release DPLL soft-reset and wait for lock */
+	{0x1D00, 0xF5},
+	{0x1E00, 0xF5},
+	{MAX929X_TABLE_WAIT, MAX96716_DPLL_LOCK_WAIT_MS},
+	{0x0331, 0xF0},  /* MIPI_PHY1 HS timing (t_hs_prep/przero); null-effect, retained from commit 2 */
 	{0x0316, 0xAC},
 	{0x0317, 0xBB},
 	{0x0318, 0xB0},
@@ -188,10 +238,18 @@ RegI2CT max96716_Des3_init[] = {
 
 #else
 	{MAX929X_TABLE_WAIT, MAX929X_TABLE_WAIT_MS},
-	{0x0161, 0x31},
+	/* DPLL soft-reset sequence: assert reset before freq change */
+	{0x1D00, 0xF4},
+	{0x1E00, 0xF4},
+	{MAX929X_TABLE_WAIT, MAX96716_DPLL_RESET_WAIT_MS},
 	{0x0320, 0x34},
 	{0x0323, 0x34},
-	{0x0331, 0xF0},  /* MIPI_PHY1: t_hs_przero=0b11, t_hs_prep=0b11 (max HS_prepare/HS_zero margin for 2000Mbps) */
+	/* Release DPLL soft-reset and wait for lock */
+	{0x1D00, 0xF5},
+	{0x1E00, 0xF5},
+	{MAX929X_TABLE_WAIT, MAX96716_DPLL_LOCK_WAIT_MS},
+	{0x0331, 0xF0},  /* MIPI_PHY1 HS timing (t_hs_prep/przero); null-effect, retained from commit 2 */
+	{0x0161, 0x31},
 	{0x0316, 0x80},
 	{0x0317, 0xBC},
 	{0x0318, 0x00},
@@ -224,10 +282,18 @@ RegI2CT max96716_Des3_init[] = {
 
 RegI2CT max96716_Des4_init[] = {
 	{MAX929X_TABLE_WAIT, MAX929X_TABLE_WAIT_MS},
-	{0x0161, 0x31},
+	/* DPLL soft-reset sequence: assert reset before freq change */
+	{0x1D00, 0xF4},
+	{0x1E00, 0xF4},
+	{MAX929X_TABLE_WAIT, MAX96716_DPLL_RESET_WAIT_MS},
 	{0x0320, 0x34},
 	{0x0323, 0x34},
-	{0x0331, 0xF0},  /* MIPI_PHY1: t_hs_przero=0b11, t_hs_prep=0b11 (max HS_prepare/HS_zero margin for 2000Mbps) */
+	/* Release DPLL soft-reset and wait for lock */
+	{0x1D00, 0xF5},
+	{0x1E00, 0xF5},
+	{MAX929X_TABLE_WAIT, MAX96716_DPLL_LOCK_WAIT_MS},
+	{0x0331, 0xF0},  /* MIPI_PHY1 HS timing (t_hs_prep/przero); null-effect, retained from commit 2 */
+	{0x0161, 0x31},
 	{0x0316, 0x80},
 	{0x0317, 0xBC},
 	{0x0318, 0x00},
@@ -260,10 +326,18 @@ RegI2CT max96716_Des4_init[] = {
 
 RegI2CT max96716_Des5_init[] = {
 	{MAX929X_TABLE_WAIT, MAX929X_TABLE_WAIT_MS},
-	{0x0161, 0x31},
+	/* DPLL soft-reset sequence: assert reset before freq change */
+	{0x1D00, 0xF4},
+	{0x1E00, 0xF4},
+	{MAX929X_TABLE_WAIT, MAX96716_DPLL_RESET_WAIT_MS},
 	{0x0320, 0x34},
 	{0x0323, 0x34},
-	{0x0331, 0xF0},  /* MIPI_PHY1: t_hs_przero=0b11, t_hs_prep=0b11 (max HS_prepare/HS_zero margin for 2000Mbps) */
+	/* Release DPLL soft-reset and wait for lock */
+	{0x1D00, 0xF5},
+	{0x1E00, 0xF5},
+	{MAX929X_TABLE_WAIT, MAX96716_DPLL_LOCK_WAIT_MS},
+	{0x0331, 0xF0},  /* MIPI_PHY1 HS timing (t_hs_prep/przero); null-effect, retained from commit 2 */
+	{0x0161, 0x31},
 	{0x0316, 0x80},
 	{0x0317, 0xBC},
 	{0x0318, 0x00},
@@ -295,13 +369,22 @@ RegI2CT max96716_Des5_init[] = {
 
 RegI2CT max96716_Des6_init[] = {
 	{MAX929X_TABLE_WAIT, MAX929X_TABLE_WAIT_MS},
-	{0x0161, 0x31},
 	{0x0050, 0x00},
 	{0x0051, 0x01},
 	{0x0052, 0x02},
 	{0x0053, 0x03},
+	/* DPLL soft-reset sequence: assert reset before freq change */
+	{0x1D00, 0xF4},
+	{0x1E00, 0xF4},
+	{MAX929X_TABLE_WAIT, MAX96716_DPLL_RESET_WAIT_MS},
 	{0x0320, 0x34},
 	{0x0323, 0x20},
+	/* Release DPLL soft-reset and wait for lock */
+	{0x1D00, 0xF5},
+	{0x1E00, 0xF5},
+	{MAX929X_TABLE_WAIT, MAX96716_DPLL_LOCK_WAIT_MS},
+	{0x0331, 0xF0},  /* MIPI_PHY1 HS timing (t_hs_prep/przero); null-effect, retained from commit 2 */
+	{0x0161, 0x31},
 	{0x0316, 0xAC},
 	{0x0317, 0xBB},
 	{0x0318, 0xB0},
@@ -342,10 +425,18 @@ RegI2CT max96716_Des6_init[] = {
 
 RegI2CT max96716_Des7_init[] = {
 	{MAX929X_TABLE_WAIT, MAX929X_TABLE_WAIT_MS},
-	{0x0161, 0x31},
+	/* DPLL soft-reset sequence: assert reset before freq change */
+	{0x1D00, 0xF4},
+	{0x1E00, 0xF4},
+	{MAX929X_TABLE_WAIT, MAX96716_DPLL_RESET_WAIT_MS},
 	{0x0320, 0x34},
 	{0x0323, 0x34},
-	{0x0331, 0xF0},  /* MIPI_PHY1: t_hs_przero=0b11, t_hs_prep=0b11 (max HS_prepare/HS_zero margin for 2000Mbps) */
+	/* Release DPLL soft-reset and wait for lock */
+	{0x1D00, 0xF5},
+	{0x1E00, 0xF5},
+	{MAX929X_TABLE_WAIT, MAX96716_DPLL_LOCK_WAIT_MS},
+	{0x0331, 0xF0},  /* MIPI_PHY1 HS timing (t_hs_prep/przero); null-effect, retained from commit 2 */
+	{0x0161, 0x31},
 	{0x0316, 0x80},
 	{0x0317, 0xBC},
 	{0x0318, 0x00},
@@ -381,8 +472,17 @@ RegI2CT max96716_Des2_revserse_splitter_init[] = {
 	{0x0051, 0x01},
 	{0x0052, 0x02},
 	{0x0053, 0x03},
+	/* DPLL soft-reset sequence: assert reset before freq change */
+	{0x1D00, 0xF4},
+	{0x1E00, 0xF4},
+	{MAX929X_TABLE_WAIT, MAX96716_DPLL_RESET_WAIT_MS},
 	{0x0320, 0x34},
 	{0x0323, 0x20},
+	/* Release DPLL soft-reset and wait for lock */
+	{0x1D00, 0xF5},
+	{0x1E00, 0xF5},
+	{MAX929X_TABLE_WAIT, MAX96716_DPLL_LOCK_WAIT_MS},
+	{0x0331, 0xF0},  /* MIPI_PHY1 HS timing (t_hs_prep/przero); null-effect, retained from commit 2 */
 	{0x0316, 0xAC},
 	{0x0317, 0xBC},
 	{0x0318, 0xB0},
@@ -421,5 +521,6 @@ static int max96716_Xylon_Deser_setup(desInterface *des);
 static int max96716_Xylon_Deser_Enable(u8 pos);
 static int max96716_Xylon_Deser_Disable(u8 pos);
 static int max96716_Remapping_des_addr(desInterface *desIface);
+static RESULT max96716_dpll_reset_and_verify(u8 i2cBusId, u16 Deser_addr);
 
 #endif
