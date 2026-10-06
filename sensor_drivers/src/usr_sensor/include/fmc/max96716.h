@@ -142,6 +142,13 @@ RegI2CT max96716_Des1_init[] = {
 	{0x0490, 0x40},
 	{0x0491, 0x01},
 	{0x0492, 0x41},
+	/* MIPI D-PHY TX de-skew (Required >1.5Gbps/lane per MAX96716A UG "MIPI D-PHY Deskew Settings"):
+	   auto-initial + periodic. Per the UG the MIPI Tx clock lane starts automatically (continuous HS)
+	   when deskew is active, so this also addresses the clock-lane ErrCtrl (CL_STATUS bit5). */
+	{0x0443, 0x81},  /* DESKEW_INIT PHY A: auto-initial deskew ON (bit7=1), initial width 2x32k UI (bits[2:0]=001) */
+	{0x0444, 0x91},  /* DESKEW_PER  PHY A: periodic deskew ON (bit7=1), every 2 frames (bits[5:3]=010) */
+	{0x0483, 0x81},  /* DESKEW_INIT PHY B */
+	{0x0484, 0x91},  /* DESKEW_PER  PHY B */
 	{MAX929X_TABLE_WAIT, MAX929X_TABLE_WAIT_MS},
 	{MAX929X_TABLE_END, 0}
 };
@@ -188,6 +195,13 @@ RegI2CT max96716_Des2_init[] = {
 	{0x0490, 0x40},
 	{0x0491, 0x01},
 	{0x0492, 0x41},
+	/* MIPI D-PHY TX de-skew (Required >1.5Gbps/lane per MAX96716A UG "MIPI D-PHY Deskew Settings"):
+	   auto-initial + periodic. Per the UG the MIPI Tx clock lane starts automatically (continuous HS)
+	   when deskew is active, so this also addresses the clock-lane ErrCtrl (CL_STATUS bit5). */
+	{0x0443, 0x81},  /* DESKEW_INIT PHY A: auto-initial deskew ON (bit7=1), initial width 2x32k UI (bits[2:0]=001) */
+	{0x0444, 0x91},  /* DESKEW_PER  PHY A: periodic deskew ON (bit7=1), every 2 frames (bits[5:3]=010) */
+	{0x0483, 0x81},  /* DESKEW_INIT PHY B */
+	{0x0484, 0x91},  /* DESKEW_PER  PHY B */
 	{MAX929X_TABLE_WAIT, MAX929X_TABLE_WAIT_MS},
 	{MAX929X_TABLE_END, 0}
 };
@@ -239,6 +253,13 @@ RegI2CT max96716_Des3_init[] = {
 	{0x0490, 0x40},
 	{0x0491, 0x01},
 	{0x0492, 0x41},
+	/* MIPI D-PHY TX de-skew (Required >1.5Gbps/lane per MAX96716A UG "MIPI D-PHY Deskew Settings"):
+	   auto-initial + periodic. Per the UG the MIPI Tx clock lane starts automatically (continuous HS)
+	   when deskew is active, so this also addresses the clock-lane ErrCtrl (CL_STATUS bit5). */
+	{0x0443, 0x81},  /* DESKEW_INIT PHY A: auto-initial deskew ON (bit7=1), initial width 2x32k UI (bits[2:0]=001) */
+	{0x0444, 0x91},  /* DESKEW_PER  PHY A: periodic deskew ON (bit7=1), every 2 frames (bits[5:3]=010) */
+	{0x0483, 0x81},  /* DESKEW_INIT PHY B */
+	{0x0484, 0x91},  /* DESKEW_PER  PHY B */
 	{MAX929X_TABLE_WAIT, MAX929X_TABLE_WAIT_MS},
 	{MAX929X_TABLE_END, 0}
 
@@ -283,6 +304,13 @@ RegI2CT max96716_Des3_init[] = {
 	{0x0490, 0x40},
 	{0x0491, 0x01},
 	{0x0492, 0x41},
+	/* MIPI D-PHY TX de-skew (Required >1.5Gbps/lane per MAX96716A UG "MIPI D-PHY Deskew Settings"):
+	   auto-initial + periodic. Per the UG the MIPI Tx clock lane starts automatically (continuous HS)
+	   when deskew is active, so this also addresses the clock-lane ErrCtrl (CL_STATUS bit5). */
+	{0x0443, 0x81},  /* DESKEW_INIT PHY A: auto-initial deskew ON (bit7=1), initial width 2x32k UI (bits[2:0]=001) */
+	{0x0444, 0x91},  /* DESKEW_PER  PHY A: periodic deskew ON (bit7=1), every 2 frames (bits[5:3]=010) */
+	{0x0483, 0x81},  /* DESKEW_INIT PHY B */
+	{0x0484, 0x91},  /* DESKEW_PER  PHY B */
 	{MAX929X_TABLE_WAIT, MAX929X_TABLE_WAIT_MS},
 	{MAX929X_TABLE_END, 0}
 #endif
@@ -329,6 +357,13 @@ RegI2CT max96716_Des4_init[] = {
 	{0x0490, 0x40},
 	{0x0491, 0x01},
 	{0x0492, 0x41},
+	/* MIPI D-PHY TX de-skew (Required >1.5Gbps/lane per MAX96716A UG "MIPI D-PHY Deskew Settings"):
+	   auto-initial + periodic. Per the UG the MIPI Tx clock lane starts automatically (continuous HS)
+	   when deskew is active, so this also addresses the clock-lane ErrCtrl (CL_STATUS bit5). */
+	{0x0443, 0x81},  /* DESKEW_INIT PHY A: auto-initial deskew ON (bit7=1), initial width 2x32k UI (bits[2:0]=001) */
+	{0x0444, 0x91},  /* DESKEW_PER  PHY A: periodic deskew ON (bit7=1), every 2 frames (bits[5:3]=010) */
+	{0x0483, 0x81},  /* DESKEW_INIT PHY B */
+	{0x0484, 0x91},  /* DESKEW_PER  PHY B */
 	{MAX929X_TABLE_WAIT, MAX929X_TABLE_WAIT_MS},
 	{MAX929X_TABLE_END, 0}
 };
@@ -375,6 +410,13 @@ RegI2CT max96716_Des5_init[] = {
 	{0x0490, 0x40},
 	{0x0491, 0x01},
 	{0x0492, 0x41},
+	/* MIPI D-PHY TX de-skew (Required >1.5Gbps/lane per MAX96716A UG "MIPI D-PHY Deskew Settings"):
+	   auto-initial + periodic. Per the UG the MIPI Tx clock lane starts automatically (continuous HS)
+	   when deskew is active, so this also addresses the clock-lane ErrCtrl (CL_STATUS bit5). */
+	{0x0443, 0x81},  /* DESKEW_INIT PHY A: auto-initial deskew ON (bit7=1), initial width 2x32k UI (bits[2:0]=001) */
+	{0x0444, 0x91},  /* DESKEW_PER  PHY A: periodic deskew ON (bit7=1), every 2 frames (bits[5:3]=010) */
+	{0x0483, 0x81},  /* DESKEW_INIT PHY B */
+	{0x0484, 0x91},  /* DESKEW_PER  PHY B */
 	{MAX929X_TABLE_WAIT, MAX929X_TABLE_WAIT_MS},
 	{MAX929X_TABLE_END, 0}
 };
@@ -433,6 +475,13 @@ RegI2CT max96716_Des6_init[] = {
 	{0x0496, 0xC0},
 	{0x0497, 0x41},
 	{0x0498, 0xC1},
+	/* MIPI D-PHY TX de-skew (Required >1.5Gbps/lane per MAX96716A UG "MIPI D-PHY Deskew Settings"):
+	   auto-initial + periodic. Per the UG the MIPI Tx clock lane starts automatically (continuous HS)
+	   when deskew is active, so this also addresses the clock-lane ErrCtrl (CL_STATUS bit5). */
+	{0x0443, 0x81},  /* DESKEW_INIT PHY A: auto-initial deskew ON (bit7=1), initial width 2x32k UI (bits[2:0]=001) */
+	{0x0444, 0x91},  /* DESKEW_PER  PHY A: periodic deskew ON (bit7=1), every 2 frames (bits[5:3]=010) */
+	{0x0483, 0x81},  /* DESKEW_INIT PHY B */
+	{0x0484, 0x91},  /* DESKEW_PER  PHY B */
 	{MAX929X_TABLE_WAIT, MAX929X_TABLE_WAIT_MS},
 	{MAX929X_TABLE_END, 0}
 };
@@ -478,6 +527,13 @@ RegI2CT max96716_Des7_init[] = {
 	{0x0490, 0x40},
 	{0x0491, 0x01},
 	{0x0492, 0x41},
+	/* MIPI D-PHY TX de-skew (Required >1.5Gbps/lane per MAX96716A UG "MIPI D-PHY Deskew Settings"):
+	   auto-initial + periodic. Per the UG the MIPI Tx clock lane starts automatically (continuous HS)
+	   when deskew is active, so this also addresses the clock-lane ErrCtrl (CL_STATUS bit5). */
+	{0x0443, 0x81},  /* DESKEW_INIT PHY A: auto-initial deskew ON (bit7=1), initial width 2x32k UI (bits[2:0]=001) */
+	{0x0444, 0x91},  /* DESKEW_PER  PHY A: periodic deskew ON (bit7=1), every 2 frames (bits[5:3]=010) */
+	{0x0483, 0x81},  /* DESKEW_INIT PHY B */
+	{0x0484, 0x91},  /* DESKEW_PER  PHY B */
 	{MAX929X_TABLE_WAIT, MAX929X_TABLE_WAIT_MS},
 	{MAX929X_TABLE_END, 0}
 };
@@ -530,6 +586,13 @@ RegI2CT max96716_Des2_revserse_splitter_init[] = {
 	{0x0491, 0x01},
 	{0x0492, 0x41},
 	{0x001c, 0xff},
+	/* MIPI D-PHY TX de-skew (Required >1.5Gbps/lane per MAX96716A UG "MIPI D-PHY Deskew Settings"):
+	   auto-initial + periodic. Per the UG the MIPI Tx clock lane starts automatically (continuous HS)
+	   when deskew is active, so this also addresses the clock-lane ErrCtrl (CL_STATUS bit5). */
+	{0x0443, 0x81},  /* DESKEW_INIT PHY A: auto-initial deskew ON (bit7=1), initial width 2x32k UI (bits[2:0]=001) */
+	{0x0444, 0x91},  /* DESKEW_PER  PHY A: periodic deskew ON (bit7=1), every 2 frames (bits[5:3]=010) */
+	{0x0483, 0x81},  /* DESKEW_INIT PHY B */
+	{0x0484, 0x91},  /* DESKEW_PER  PHY B */
 	{MAX929X_TABLE_WAIT, MAX929X_TABLE_WAIT_MS},
 	{MAX929X_TABLE_END, 0}
 };
