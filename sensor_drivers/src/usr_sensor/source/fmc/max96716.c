@@ -1935,6 +1935,23 @@ static RESULT max96716_Xylon_Deser_setup(desInterface *des)
 				osSleep(MAX96716_REMAP_DELAY_MS);
 		}
 
+		/* Errata #5: one-shot reset both GMSL links to re-acquire with the
+		 * Rx robust-operation config written by the init table above
+		 * (CTRL0/CTRL1 RESET_ONESHOT = bit5, via read-modify-write). */
+		{
+			u8 e5_rd[2] = {0}, e5_wr[2] = {0};
+
+			if (HalReadI2CReg(i2cBusId, Deser_addr, CTRL0_REG, 0x2, e5_rd, 1) == RET_SUCCESS) {
+				e5_wr[0] = e5_rd[0] | (1 << RESET_ONE_SHOT);
+				HalWriteI2CReg(i2cBusId, Deser_addr, CTRL0_REG, 0x2, e5_wr, 1);
+			}
+			if (HalReadI2CReg(i2cBusId, Deser_addr, CTRL1_REG, 0x2, e5_rd, 1) == RET_SUCCESS) {
+				e5_wr[0] = e5_rd[0] | (1 << RESET_ONE_SHOT);
+				HalWriteI2CReg(i2cBusId, Deser_addr, CTRL1_REG, 0x2, e5_wr, 1);
+			}
+			osSleep(MAX96716_DPLL_LOCK_WAIT_MS);
+		}
+
 		/* DPLL lock verification with retry logic */
 		Status = max96716_dpll_reset_and_verify(i2cBusId, Deser_addr);
 		if (Status != RET_SUCCESS) {
