@@ -24,10 +24,13 @@
  *
  *************************************************************************/
 #include <fmc/max96716.h>
+#include "task.h"	/* periodic deser-health monitor task (xTaskCreate/vTaskDelay) */
 
 CREATE_TRACER(MAX_96716_INFO, "MAX_96716_INFO: ", INFO, 1);
-CREATE_TRACER(MAX_96716_WARNING, "MAX_96716_WARNING: ", WARNING, 1);
-CREATE_TRACER(MAX_96716_ERROR, "MAX_96716_ERROR: ", ERROR, 1);
+/* WARNING/ERROR tracers created at ALWAYS level so deser warnings/errors print
+ * with the default glb_level=0 (setTraceLevel is not linkable in this build). */
+CREATE_TRACER(MAX_96716_WARNING, "MAX_96716_WARNING: ", ALWAYS, 1);
+CREATE_TRACER(MAX_96716_ERROR, "MAX_96716_ERROR: ", ALWAYS, 1);
 CREATE_TRACER(MAX_96716_ALWAYS, "MAX_96716_ALWAYS: ", ALWAYS, 1);
 
 static u32 fmcinitDone;
@@ -985,6 +988,10 @@ RESULT max96716_probe_if_links(u8 Deser_addr, desInterface *desIface)
 	else
 		desIface->link_type = LINK_B;
 
+	TRACE(MAX_96716_ALWAYS,
+		"=== DESR[probe] DES%d  linkA_lock=%d linkB_lock=%d type=%d\r\n",
+		desIface->Port_DES_index + 1, dev_a, dev_b, desIface->link_type);
+
 	return Status;
 }
 
@@ -1874,6 +1881,100 @@ u32 get_max96716_des_array(desInterface *des, RegI2CT **max96716_des_arr)
  * @retval  RET_FAILURE   Setup failed
  *
  *************************************************************************/
+/**************************************************************************
+ *          max96716_dump_link_status
+ *
+ * @brief   Dump deserializer GMSL (upstream) + MIPI CSI-2 TX (downstream)
+ *          health to localize the intermittent one-link 30fps capture
+ *          failure. Read-only. MUST run on the core that owns this deser's
+ *          I2C bus (max96716_core_des_map): DS2->core6, DS3->core7.
+ *
+ *          Addresses verified vs MAX96716A datasheet register map (16-bit):
+ *            GMSL  CTRL3 0x0013 b3 LOCKED(linkA); CTRL9 0x5009 b3 LOCKED_B;
+ *                  DEC_ERR_A 0x0022; DEC_ERR_B 0x0023; IDLE_ERR 0x0024;
+ *                  PKT_CNT 0x0025.
+ *            MIPI  BACKTOP1 0x0308 b4/5/6/7 CSIPLL X/Y/Z/U locked;
+ *                  BACKTOP11 0x0312 b1 LMO_Y / b2 LMO_Z line-mem overflow;
+ *                  VIDEO_RX8 0x011A(Y)/0x012C(Z) b6 VID_LOCK; 0x0342 tx pkt.
+ *          NOTE: LMO/VID_LOCK/error-counts are only meaningful while video is
+ *          streaming; at bring-up only the lock/PLL bits are valid.
+ *
+ *************************************************************************/
+void max96716_dump_link_status(desInterface *des, const char *tag)
+{
+	if (des == NULL)
+		return;
+
+	u8 i2cBusId = GetI2cBusIdForDes(des->Port_DES_index);
+	u16 Deser_addr = (des->des_alias_addr) >> 1;
+	u8 d = des->Port_DES_index + 1;
+	u8 rd[2] = {0};
+
+	u8 ctrl3 = 0, ctrl9 = 0, bt1 = 0, bt11 = 0, vidy = 0, vidz = 0, txp = 0;
+	u8 decA0 = 0, decB0 = 0, idle0 = 0, pkt = 0;
+	u8 decA1 = 0, decB1 = 0, idle1 = 0;
+
+	if (HalReadI2CReg(i2cBusId, Deser_addr, 0x0013, 0x2, rd, 1) == RET_SUCCESS) ctrl3 = rd[0];
+	if (HalReadI2CReg(i2cBusId, Deser_addr, 0x5009, 0x2, rd, 1) == RET_SUCCESS) ctrl9 = rd[0];
+	if (HalReadI2CReg(i2cBusId, Deser_addr, 0x0308, 0x2, rd, 1) == RET_SUCCESS) bt1 = rd[0];
+	if (HalReadI2CReg(i2cBusId, Deser_addr, 0x0312, 0x2, rd, 1) == RET_SUCCESS) bt11 = rd[0];
+	if (HalReadI2CReg(i2cBusId, Deser_addr, 0x011A, 0x2, rd, 1) == RET_SUCCESS) vidy = rd[0];
+	if (HalReadI2CReg(i2cBusId, Deser_addr, 0x012C, 0x2, rd, 1) == RET_SUCCESS) vidz = rd[0];
+	if (HalReadI2CReg(i2cBusId, Deser_addr, 0x0342, 0x2, rd, 1) == RET_SUCCESS) txp = rd[0];
+
+	/* GMSL error counters: sample, wait, re-sample for a live delta */
+	if (HalReadI2CReg(i2cBusId, Deser_addr, 0x0022, 0x2, rd, 1) == RET_SUCCESS) decA0 = rd[0];
+	if (HalReadI2CReg(i2cBusId, Deser_addr, 0x0023, 0x2, rd, 1) == RET_SUCCESS) decB0 = rd[0];
+	if (HalReadI2CReg(i2cBusId, Deser_addr, 0x0024, 0x2, rd, 1) == RET_SUCCESS) idle0 = rd[0];
+	if (HalReadI2CReg(i2cBusId, Deser_addr, 0x0025, 0x2, rd, 1) == RET_SUCCESS) pkt = rd[0];
+	osSleep(100);
+	if (HalReadI2CReg(i2cBusId, Deser_addr, 0x0022, 0x2, rd, 1) == RET_SUCCESS) decA1 = rd[0];
+	if (HalReadI2CReg(i2cBusId, Deser_addr, 0x0023, 0x2, rd, 1) == RET_SUCCESS) decB1 = rd[0];
+	if (HalReadI2CReg(i2cBusId, Deser_addr, 0x0024, 0x2, rd, 1) == RET_SUCCESS) idle1 = rd[0];
+
+	TRACE(MAX_96716_ALWAYS,
+		"\r\n===================[ DESR DUMP | %s | DES%d ]===================\r\n",
+		tag, d);
+	TRACE(MAX_96716_ALWAYS,
+		"=== DESR[%s] DES%d GMSL  lockA=%d lockB=%d  decA=%d(+%d) decB=%d(+%d) idle=%d(+%d) pkt=%d\r\n",
+		tag, d,
+		(ctrl3 >> LOCKED) & 1, (ctrl9 >> LOCKED) & 1,
+		decA0, (u8)(decA1 - decA0), decB0, (u8)(decB1 - decB0),
+		idle0, (u8)(idle1 - idle0), pkt);
+	TRACE(MAX_96716_ALWAYS,
+		"=== DESR[%s] DES%d MIPI  pllLK=0x%02x[X%d Y%d Z%d U%d] LMO_Y=%d LMO_Z=%d  vidLockY=%d vidLockZ=%d  txpkt=0x%02x | raw ctrl3=0x%02x bt11=0x%02x\r\n",
+		tag, d,
+		bt1, (bt1 >> 4) & 1, (bt1 >> 5) & 1, (bt1 >> 6) & 1, (bt1 >> 7) & 1,
+		(bt11 >> 1) & 1, (bt11 >> 2) & 1,
+		(vidy >> 6) & 1, (vidz >> 6) & 1,
+		txp, ctrl3, bt11);
+	TRACE(MAX_96716_ALWAYS,
+		"==================[ DESR END | %s | DES%d ]====================\r\n",
+		tag, d);
+}
+
+/**************************************************************************
+ *          max96716_monitor_task
+ *
+ * @brief   Periodic deser-health monitor. Dumps this deserializer's
+ *          registers every MAX96716_MONITOR_PERIOD_MS so LMO/lock/VID_LOCK
+ *          are captured DURING streaming (the bring-up dumps fire pre-video).
+ *          Runs on the deser's owning core; deser I2C reads serialize with
+ *          the ISP's own I2C via the HAL mutex. Low priority.
+ *
+ *************************************************************************/
+#define MAX96716_MONITOR_PERIOD_MS	(45000U)
+
+static void max96716_monitor_task(void *pvParameters)
+{
+	desInterface *des = (desInterface *)pvParameters;
+
+	for (;;) {
+		vTaskDelay(pdMS_TO_TICKS(MAX96716_MONITOR_PERIOD_MS));
+		max96716_dump_link_status(des, "periodic");
+	}
+}
+
 static RESULT max96716_Xylon_Deser_setup(desInterface *des)
 {
 	RESULT Status = RET_SUCCESS;
@@ -1896,6 +1997,10 @@ static RESULT max96716_Xylon_Deser_setup(desInterface *des)
 			Deser_addr);
 #endif
 		len = get_max96716_des_array(des, &Deserializer_initialization);
+
+		TRACE(MAX_96716_ALWAYS,
+			"=== DESR[init] DES%d  writing init table: %d entries (bus=%d addr=0x%x)\r\n",
+			des->Port_DES_index + 1, (int)len, i2cBusId, Deser_addr);
 
 		for (reg_idx = 0; reg_idx < len; reg_idx++) {
 			if ((Deserializer_initialization + reg_idx)->addr == MAX929X_TABLE_END)
@@ -1952,6 +2057,11 @@ static RESULT max96716_Xylon_Deser_setup(desInterface *des)
 			osSleep(MAX96716_DPLL_LOCK_WAIT_MS);
 		}
 
+		TRACE(MAX_96716_ALWAYS,
+			"=== DESR[e5_reset] DES%d  errata#5 Rx config + one-shot link reset done\r\n",
+			des->Port_DES_index + 1);
+		max96716_dump_link_status(des, "post_e5reset");
+
 		/* DPLL lock verification with retry logic */
 		Status = max96716_dpll_reset_and_verify(i2cBusId, Deser_addr);
 		if (Status != RET_SUCCESS) {
@@ -1963,6 +2073,31 @@ static RESULT max96716_Xylon_Deser_setup(desInterface *des)
 
 		des->des_state = in_init;
 		des->des_state = in_running;
+
+		max96716_dump_link_status(des, "cfg_done");
+
+		/* Spawn the periodic deser-health monitor once per deserializer so
+		 * LMO/lock/VID_LOCK are captured DURING streaming (bring-up dumps are
+		 * pre-video). On create failure the guard stays 0 and no monitor runs. */
+		{
+			static u8 monitor_started[DS_MAX];
+			u8 mon_idx = des->Port_DES_index;
+
+			if (mon_idx < DS_MAX && monitor_started[mon_idx] == 0) {
+				if (xTaskCreate(max96716_monitor_task, "desrmon",
+						configMINIMAL_STACK_SIZE * 4, des,
+						tskIDLE_PRIORITY + 1, NULL) == pdPASS) {
+					monitor_started[mon_idx] = 1;
+					TRACE(MAX_96716_ALWAYS,
+						"=== DESR[monitor] DES%d  periodic %us health task started\r\n",
+						mon_idx + 1, MAX96716_MONITOR_PERIOD_MS / 1000U);
+				} else {
+					TRACE(MAX_96716_ALWAYS,
+						"=== DESR[monitor] DES%d  task create FAILED (heap?)\r\n",
+						mon_idx + 1);
+				}
+			}
+		}
 
 #if defined(READ_I2C_REG)
 		TRACE(MAX_96716_ALWAYS, "\n\rInitialization Done...\n\r");

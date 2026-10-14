@@ -627,4 +627,6 @@ static int max96716_Xylon_Deser_Disable(u8 pos);
 static int max96716_Remapping_des_addr(desInterface *desIface);
 static RESULT max96716_dpll_reset_and_verify(u8 i2cBusId, u16 Deser_addr);
 
+void max96716_dump_link_status(desInterface *des, const char *tag);
+
 #endif
