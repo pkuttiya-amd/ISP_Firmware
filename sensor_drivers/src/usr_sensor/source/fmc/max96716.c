@@ -1894,8 +1894,18 @@ u32 get_max96716_des_array(desInterface *des, RegI2CT **max96716_des_arr)
  *                  DEC_ERR_A 0x0022; DEC_ERR_B 0x0023; IDLE_ERR 0x0024;
  *                  PKT_CNT 0x0025.
  *            MIPI  BACKTOP1 0x0308 b4/5/6/7 CSIPLL X/Y/Z/U locked;
- *                  BACKTOP11 0x0312 b1 LMO_Y / b2 LMO_Z line-mem overflow;
- *                  VIDEO_RX8 0x011A(Y)/0x012C(Z) b6 VID_LOCK; 0x0342 tx pkt.
+ *                  BACKTOP11 0x0312 b1 LMO_Y / b2 LMO_Z, b5/b6 cmd FIFO ovf;
+ *                  VIDEO_RX8 0x011A(Y)/0x012C(Z) b6 VID_LOCK;
+ *                  VIDEO_RX10 0x011C(Y)/0x012E(Z) b7 VID_OVERFLOW (clear-on-read);
+ *                  0x0341 b0 combined VID_OVERFLOW; 0x0339/33A/33B/33C phy-copy 0/1.
+ *            TX    There is no per-data-lane status. In 2x4 mode one 4-lane port
+ *                  is one controller: Port A status 0x442 (PHY0+PHY1), Port B
+ *                  status 0x482 (PHY2+PHY3). Bit1 = in-sync, bit2 = sync lost
+ *                  since last read. PHY packet nibbles: 0x344 phy0/phy1, 0x345
+ *                  phy2/phy3. Deskew 0x443/444/483/484 are config readback only.
+ *                  INTR14 0x5013 b0 LOSS_OF_LOCK_FLAG (clear-on-read): GMSL
+ *                  lock lost if REG3 0x0003 b7 lock_cfg=0, MIPI output lost
+ *                  if lock_cfg=1. Survives after VID_LOCK returns.
  *          NOTE: LMO/VID_LOCK/error-counts are only meaningful while video is
  *          streaming; at bring-up only the lock/PLL bits are valid.
  *
@@ -1913,6 +1923,11 @@ void max96716_dump_link_status(desInterface *des, const char *tag)
 	u8 ctrl3 = 0, ctrl9 = 0, bt1 = 0, bt11 = 0, vidy = 0, vidz = 0, txp = 0;
 	u8 decA0 = 0, decB0 = 0, idle0 = 0, pkt = 0;
 	u8 decA1 = 0, decB1 = 0, idle1 = 0;
+	u8 cp0o = 0, cp0u = 0, cp1o = 0, cp1u = 0, vidovf = 0;
+	u8 txstA = 0, txstB = 0, vidovY = 0, vidovZ = 0;
+	u8 phy01 = 0, phy23 = 0, dupk = 0, phy_mode = 0;
+	u8 dskAi = 0, dskAp = 0, dskBi = 0, dskBp = 0;
+	u8 intr14 = 0, reg3 = 0;
 
 	if (HalReadI2CReg(i2cBusId, Deser_addr, 0x0013, 0x2, rd, 1) == RET_SUCCESS) ctrl3 = rd[0];
 	if (HalReadI2CReg(i2cBusId, Deser_addr, 0x5009, 0x2, rd, 1) == RET_SUCCESS) ctrl9 = rd[0];
@@ -1921,6 +1936,30 @@ void max96716_dump_link_status(desInterface *des, const char *tag)
 	if (HalReadI2CReg(i2cBusId, Deser_addr, 0x011A, 0x2, rd, 1) == RET_SUCCESS) vidy = rd[0];
 	if (HalReadI2CReg(i2cBusId, Deser_addr, 0x012C, 0x2, rd, 1) == RET_SUCCESS) vidz = rd[0];
 	if (HalReadI2CReg(i2cBusId, Deser_addr, 0x0342, 0x2, rd, 1) == RET_SUCCESS) txp = rd[0];
+
+	/* PHY-copy FIFO sticky flags exist only for copy engines 0 and 1 (0x339-0x33C bit0).
+	 * 0x33D-0x340 are timing/reset/enable, not phy-copy 2/3 error flags. */
+	if (HalReadI2CReg(i2cBusId, Deser_addr, 0x0339, 0x2, rd, 1) == RET_SUCCESS) cp0o = rd[0];
+	if (HalReadI2CReg(i2cBusId, Deser_addr, 0x033A, 0x2, rd, 1) == RET_SUCCESS) cp0u = rd[0];
+	if (HalReadI2CReg(i2cBusId, Deser_addr, 0x033B, 0x2, rd, 1) == RET_SUCCESS) cp1o = rd[0];
+	if (HalReadI2CReg(i2cBusId, Deser_addr, 0x033C, 0x2, rd, 1) == RET_SUCCESS) cp1u = rd[0];
+	if (HalReadI2CReg(i2cBusId, Deser_addr, 0x0341, 0x2, rd, 1) == RET_SUCCESS) vidovf = rd[0];
+	if (HalReadI2CReg(i2cBusId, Deser_addr, 0x011C, 0x2, rd, 1) == RET_SUCCESS) vidovY = rd[0];
+	if (HalReadI2CReg(i2cBusId, Deser_addr, 0x012E, 0x2, rd, 1) == RET_SUCCESS) vidovZ = rd[0];
+
+	/* 0x442/0x482 are per MIPI controller. No per-data-lane equivalent of Versal DLx_STATUS. */
+	if (HalReadI2CReg(i2cBusId, Deser_addr, 0x0442, 0x2, rd, 1) == RET_SUCCESS) txstA = rd[0];
+	if (HalReadI2CReg(i2cBusId, Deser_addr, 0x0482, 0x2, rd, 1) == RET_SUCCESS) txstB = rd[0];
+	if (HalReadI2CReg(i2cBusId, Deser_addr, 0x0344, 0x2, rd, 1) == RET_SUCCESS) phy01 = rd[0];
+	if (HalReadI2CReg(i2cBusId, Deser_addr, 0x0345, 0x2, rd, 1) == RET_SUCCESS) phy23 = rd[0];
+	if (HalReadI2CReg(i2cBusId, Deser_addr, 0x0343, 0x2, rd, 1) == RET_SUCCESS) dupk = rd[0];
+	if (HalReadI2CReg(i2cBusId, Deser_addr, 0x0330, 0x2, rd, 1) == RET_SUCCESS) phy_mode = rd[0];
+	if (HalReadI2CReg(i2cBusId, Deser_addr, 0x0443, 0x2, rd, 1) == RET_SUCCESS) dskAi = rd[0];
+	if (HalReadI2CReg(i2cBusId, Deser_addr, 0x0444, 0x2, rd, 1) == RET_SUCCESS) dskAp = rd[0];
+	if (HalReadI2CReg(i2cBusId, Deser_addr, 0x0483, 0x2, rd, 1) == RET_SUCCESS) dskBi = rd[0];
+	if (HalReadI2CReg(i2cBusId, Deser_addr, 0x0484, 0x2, rd, 1) == RET_SUCCESS) dskBp = rd[0];
+	if (HalReadI2CReg(i2cBusId, Deser_addr, 0x5013, 0x2, rd, 1) == RET_SUCCESS) intr14 = rd[0];
+	if (HalReadI2CReg(i2cBusId, Deser_addr, 0x0003, 0x2, rd, 1) == RET_SUCCESS) reg3 = rd[0];
 
 	/* GMSL error counters: sample, wait, re-sample for a live delta */
 	if (HalReadI2CReg(i2cBusId, Deser_addr, 0x0022, 0x2, rd, 1) == RET_SUCCESS) decA0 = rd[0];
@@ -1948,6 +1987,32 @@ void max96716_dump_link_status(desInterface *des, const char *tag)
 		(bt11 >> 1) & 1, (bt11 >> 2) & 1,
 		(vidy >> 6) & 1, (vidz >> 6) & 1,
 		txp, ctrl3, bt11);
+	TRACE(MAX_96716_ALWAYS,
+		"=== DESR[%s] DES%d TXST  ctrlA(0x442)=0x%02x sync=%d lost=%d  ctrlB(0x482)=0x%02x sync=%d lost=%d  (controller, not per lane; lost clears on read)\r\n",
+		tag, d,
+		txstA, (txstA >> 1) & 1, (txstA >> 2) & 1,
+		txstB, (txstB >> 1) & 1, (txstB >> 2) & 1);
+	TRACE(MAX_96716_ALWAYS,
+		"=== DESR[%s] DES%d LOCK  loss=%d (0x5013 b0, clear-on-read) lock_cfg=%d (0x3 b7: 0=GMSL lost, 1=MIPI output lost) raw=0x%02x\r\n",
+		tag, d, intr14 & 1, (reg3 >> 7) & 1, intr14);
+	TRACE(MAX_96716_ALWAYS,
+		"=== DESR[%s] DES%d PHYPK phy0=%d phy1=%d phy2=%d phy3=%d (0x344/345 nibbles; 2x4 A=phy0+1 B=phy2+3) dup=0x%02x mode330=0x%02x\r\n",
+		tag, d,
+		phy01 & 0xF, (phy01 >> 4) & 0xF, phy23 & 0xF, (phy23 >> 4) & 0xF,
+		dupk, phy_mode);
+	TRACE(MAX_96716_ALWAYS,
+		"=== DESR[%s] DES%d PIPE  vidOvY=%d vidOvZ=%d (0x11C/12E b7, clear-on-read) cmdOvY=%d cmdOvZ=%d (0x312 b5/b6)\r\n",
+		tag, d,
+		(vidovY >> 7) & 1, (vidovZ >> 7) & 1,
+		(bt11 >> 5) & 1, (bt11 >> 6) & 1);
+	TRACE(MAX_96716_ALWAYS,
+		"=== DESR[%s] DES%d OVF   phyCP0_ovf=%d unf=%d phyCP1_ovf=%d unf=%d VID_OVF=%d (0x339-33C b0, 0x341 b0) | raw %02x %02x %02x %02x vid=0x%02x\r\n",
+		tag, d,
+		cp0o & 1, cp0u & 1, cp1o & 1, cp1u & 1, vidovf & 1,
+		cp0o, cp0u, cp1o, cp1u, vidovf);
+	TRACE(MAX_96716_ALWAYS,
+		"=== DESR[%s] DES%d DSK   initA=0x%02x perA=0x%02x initB=0x%02x perB=0x%02x (cfg readback; expect 81/91, no deskew-done bit)\r\n",
+		tag, d, dskAi, dskAp, dskBi, dskBp);
 	TRACE(MAX_96716_ALWAYS,
 		"==================[ DESR END | %s | DES%d ]====================\r\n",
 		tag, d);
