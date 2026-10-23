@@ -2011,8 +2011,9 @@ void max96716_dump_link_status(desInterface *des, const char *tag)
 		cp0o & 1, cp0u & 1, cp1o & 1, cp1u & 1, vidovf & 1,
 		cp0o, cp0u, cp1o, cp1u, vidovf);
 	TRACE(MAX_96716_ALWAYS,
-		"=== DESR[%s] DES%d DSK   initA=0x%02x perA=0x%02x initB=0x%02x perB=0x%02x (cfg readback; expect 81/91, no deskew-done bit)\r\n",
-		tag, d, dskAi, dskAp, dskBi, dskBp);
+		"=== DESR[%s] DES%d DSK   initA=0x%02x perA=0x%02x initB=0x%02x perB=0x%02x (autoA=%u perA=%u autoB=%u perB=%u, no deskew-done bit)\r\n",
+		tag, d, dskAi, dskAp, dskBi, dskBp,
+		(dskAi >> 7) & 1, (dskAp >> 7) & 1, (dskBi >> 7) & 1, (dskBp >> 7) & 1);
 	TRACE(MAX_96716_ALWAYS,
 		"==================[ DESR END | %s | DES%d ]====================\r\n",
 		tag, d);
@@ -2038,6 +2039,151 @@ static void max96716_monitor_task(void *pvParameters)
 		vTaskDelay(pdMS_TO_TICKS(MAX96716_MONITOR_PERIOD_MS));
 		max96716_dump_link_status(des, "periodic");
 	}
+}
+
+static int max96716_rd8(u8 bus, u16 dev, u16 reg, u8 *out)
+{
+	u8 rd[2] = {0};
+	RESULT st = HalReadI2CReg(bus, dev, reg, 0x2, rd, 1);
+
+	if (st != RET_SUCCESS)
+		return -1;
+	*out = rd[0];
+	return 0;
+}
+
+/* MAX96716A 0x0320/0x0323 bits[4:0]. Codes above 0x19 are specified as 1500 Mbps. */
+static unsigned max96716_lane_mbps(u8 reg)
+{
+	static const u16 mbps[] = {
+		80, 100, 200, 300, 400, 500, 600, 700, 800, 900,
+		1000, 1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900,
+		2000, 2100, 2200, 2300, 2400, 2500
+	};
+	u8 code = reg & 0x1F;
+
+	if (code < (sizeof(mbps) / sizeof(mbps[0])))
+		return mbps[code];
+	return 1500;
+}
+
+/* REG1 0x0001 bits[1:0] RX_RATE, REG4 0x0004 bits[1:0] RX_RATE_B. */
+static const char *max96716_gmsl_rx(u8 bits)
+{
+	switch (bits & 0x3) {
+	case 1:
+		return "3Gbps";
+	case 2:
+		return "6Gbps";
+	case 3:
+		return "12Gbps";
+	default:
+		return "reserved";
+	}
+}
+
+static void max96716_dump_ser_reg1(u8 bus, u8 alias, u8 des_num, const char *link)
+{
+	u8 v = 0;
+
+	if (alias == 0) {
+		TRACE(MAX_96716_ALWAYS,
+			"=== DESCFG DES%d SER %s  no alias\r\n", des_num, link);
+		return;
+	}
+	if (max96716_rd8(bus, (u16)(alias >> 1), 0x0001, &v) != 0) {
+		TRACE(MAX_96716_ALWAYS,
+			"=== DESCFG DES%d SER %s addr=0x%02x  reg0x0001 read FAIL\r\n",
+			des_num, link, alias);
+		return;
+	}
+	TRACE(MAX_96716_ALWAYS,
+		"=== DESCFG DES%d SER %s addr=0x%02x  reg0x0001=0x%02x (raw at deser cfg_done, before serializer init table)\r\n",
+		des_num, link, alias, v);
+}
+
+/* One shot after cfg_done. DES2/DES3/DES5 only. Not called from the 45s monitor. */
+static void max96716_dump_cfg_once(desInterface *des)
+{
+	u8 idx;
+	u8 bus;
+	u16 addr;
+	u8 d;
+	u8 r320 = 0, r323 = 0, r331 = 0, r330 = 0;
+	u8 r1d00 = 0, r1e00 = 0, r308 = 0;
+	u8 a443 = 0, a444 = 0, a483 = 0, a484 = 0;
+	u8 r0001 = 0, r0004 = 0;
+
+	if (des == NULL)
+		return;
+	idx = des->Port_DES_index;
+	if (idx != PDB_DES_DES2 && idx != PDB_DES_DES3 && idx != PDB_DES_DES5)
+		return;
+
+	bus = GetI2cBusIdForDes(idx);
+	if (bus == INVALID_I2C_BUS_ID)
+		return;
+	addr = (u16)(des->des_alias_addr >> 1);
+	d = idx + 1;
+
+	TRACE(MAX_96716_ALWAYS,
+		"==================[ DESCFG once | DES%d ]====================\r\n", d);
+
+	if (max96716_rd8(bus, addr, 0x0320, &r320) != 0 ||
+	    max96716_rd8(bus, addr, 0x0323, &r323) != 0) {
+		TRACE(MAX_96716_ALWAYS,
+			"=== DESCFG DES%d LANE  0x0320/0x0323 read FAIL\r\n", d);
+	} else {
+		TRACE(MAX_96716_ALWAYS,
+			"=== DESCFG DES%d LANE  A raw=0x%02x %uMbps frac=%u | B raw=0x%02x %uMbps frac=%u\r\n",
+			d, r320, max96716_lane_mbps(r320), (r320 >> 5) & 1,
+			r323, max96716_lane_mbps(r323), (r323 >> 5) & 1);
+	}
+
+	if (max96716_rd8(bus, addr, 0x0330, &r330) != 0 ||
+	    max96716_rd8(bus, addr, 0x0331, &r331) != 0 ||
+	    max96716_rd8(bus, addr, 0x1D00, &r1d00) != 0 ||
+	    max96716_rd8(bus, addr, 0x1E00, &r1e00) != 0 ||
+	    max96716_rd8(bus, addr, 0x0308, &r308) != 0) {
+		TRACE(MAX_96716_ALWAYS,
+			"=== DESCFG DES%d PHY/PLL read FAIL\r\n", d);
+	} else {
+		TRACE(MAX_96716_ALWAYS,
+			"=== DESCFG DES%d PHY   mode=0x%02x mipiphy1=0x%02x rstA=0x%02x rstB=0x%02x BACKTOP1=0x%02x pllX=%u pllY=%u pllZ=%u pllU=%u\r\n",
+			d, r330, r331, r1d00, r1e00, r308,
+			(r308 >> 4) & 1, (r308 >> 5) & 1,
+			(r308 >> 6) & 1, (r308 >> 7) & 1);
+	}
+
+	if (max96716_rd8(bus, addr, 0x0443, &a443) != 0 ||
+	    max96716_rd8(bus, addr, 0x0444, &a444) != 0 ||
+	    max96716_rd8(bus, addr, 0x0483, &a483) != 0 ||
+	    max96716_rd8(bus, addr, 0x0484, &a484) != 0) {
+		TRACE(MAX_96716_ALWAYS,
+			"=== DESCFG DES%d DSK  read FAIL\r\n", d);
+	} else {
+		TRACE(MAX_96716_ALWAYS,
+			"=== DESCFG DES%d DSK   initA=0x%02x perA=0x%02x initB=0x%02x perB=0x%02x autoA=%u perA=%u autoB=%u perB=%u (expect auto=1 per=0)\r\n",
+			d, a443, a444, a483, a484,
+			(a443 >> 7) & 1, (a444 >> 7) & 1,
+			(a483 >> 7) & 1, (a484 >> 7) & 1);
+	}
+
+	if (max96716_rd8(bus, addr, 0x0001, &r0001) != 0 ||
+	    max96716_rd8(bus, addr, 0x0004, &r0004) != 0) {
+		TRACE(MAX_96716_ALWAYS,
+			"=== DESCFG DES%d GMSL 0x0001/0x0004 read FAIL\r\n", d);
+	} else {
+		TRACE(MAX_96716_ALWAYS,
+			"=== DESCFG DES%d GMSL  RX_RATE A raw=0x%02x %s | B raw=0x%02x %s (configured coax rate)\r\n",
+			d, r0001, max96716_gmsl_rx(r0001),
+			r0004, max96716_gmsl_rx(r0004));
+	}
+
+	max96716_dump_ser_reg1(bus, des->link_a.serializer_alias_addr, d, "A");
+	max96716_dump_ser_reg1(bus, des->link_b.serializer_alias_addr, d, "B");
+	TRACE(MAX_96716_ALWAYS,
+		"==================[ DESCFG END | DES%d ]====================\r\n", d);
 }
 
 static RESULT max96716_Xylon_Deser_setup(desInterface *des)
@@ -2140,6 +2286,7 @@ static RESULT max96716_Xylon_Deser_setup(desInterface *des)
 		des->des_state = in_running;
 
 		max96716_dump_link_status(des, "cfg_done");
+		max96716_dump_cfg_once(des);
 
 		/* Spawn the periodic deser-health monitor once per deserializer so
 		 * LMO/lock/VID_LOCK are captured DURING streaming (bring-up dumps are
