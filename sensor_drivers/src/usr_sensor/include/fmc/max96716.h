@@ -101,6 +101,11 @@
 #define MAX96716_PHY1_DPLL_FREQ_REG		(0x0320) /* BACKTOP25 */
 #define MAX96716_PHY2_DPLL_FREQ_REG		(0x0323) /* BACKTOP28 */
 
+/* BACKTOP12. CSI_OUT_EN is bit 1; reset 0x02 leaves the CSI output enabled. */
+#define MAX96716_BACKTOP12_REG			(0x0313)
+#define MAX96716_CSI_OUT_DISABLE		(0x00)
+#define MAX96716_CSI_OUT_ENABLE			(0x02)
+
 RegI2CT max96716_Des1_init[] = {
 	{MAX929X_TABLE_WAIT, MAX929X_TABLE_WAIT_MS},
 	/* DPLL soft-reset sequence: assert reset before freq change */
@@ -634,7 +639,7 @@ static int max96716_Xylon_Deser_setup(desInterface *des);
 static int max96716_Xylon_Deser_Enable(u8 pos);
 static int max96716_Xylon_Deser_Disable(u8 pos);
 static int max96716_Remapping_des_addr(desInterface *desIface);
-static RESULT max96716_dpll_reset_and_verify(u8 i2cBusId, u16 Deser_addr);
+static RESULT max96716_dpll_reset_and_verify(u8 i2cBusId, u16 Deser_addr, u8 des_num);
 
 void max96716_dump_link_status(desInterface *des, const char *tag);
 

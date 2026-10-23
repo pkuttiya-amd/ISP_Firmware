@@ -1664,11 +1664,14 @@ static RESULT max96716_Remapping_des_addr(desInterface *desIface)
  *
  * @param   i2cBusId      I2C bus ID for communication
  * @param   Deser_addr    Deserializer I2C address (7-bit, already aliased)
+ * @param   des_num       Deserializer number for the log line (1-based)
  *
- * @return  RET_SUCCESS if DPLL verified, RET_FAILURE if retries exhausted
+ * @return  RET_SUCCESS if both frequency registers read back, RET_FAILURE
+ *          if retries are exhausted. This checks 0x0320/0x0323 readback.
+ *          BACKTOP1 CSIPLL bits are printed and are not part of the pass.
  *
  *************************************************************************/
-static RESULT max96716_dpll_reset_and_verify(u8 i2cBusId, u16 Deser_addr)
+static RESULT max96716_dpll_reset_and_verify(u8 i2cBusId, u16 Deser_addr, u8 des_num)
 {
 	RESULT Status = RET_SUCCESS;
 	u8 wr_data[1] = {0};
@@ -1803,19 +1806,32 @@ static RESULT max96716_dpll_reset_and_verify(u8 i2cBusId, u16 Deser_addr)
 			continue;
 		}
 
-		/* Both PHYs verified successfully */
-		TRACE(MAX_96716_ALWAYS,
-			"%s: DPLL reset+verify OK (attempt %d/%d) "
-			"PHY1=0x%02x PHY2=0x%02x\n",
-			__func__, retry + 1, MAX96716_DPLL_MAX_RETRIES,
-			phy1_freq_expected, phy2_freq_expected);
+		/* Both frequency registers read back. CSIPLL bits are logged only. */
+		{
+			u8 pll[1] = {0};
+
+			if (HalReadI2CReg(i2cBusId, Deser_addr, 0x0308, 0x2, pll, 1) != RET_SUCCESS) {
+				TRACE(MAX_96716_ALWAYS,
+					"=== DPLL DES%d PASS attempt %d/%d PHY1=0x%02x PHY2=0x%02x BACKTOP1 read FAIL\r\n",
+					des_num, retry + 1, MAX96716_DPLL_MAX_RETRIES,
+					phy1_freq_expected, phy2_freq_expected);
+			} else {
+				TRACE(MAX_96716_ALWAYS,
+					"=== DPLL DES%d PASS attempt %d/%d PHY1=0x%02x PHY2=0x%02x BACKTOP1=0x%02x pllX=%u pllY=%u pllZ=%u pllU=%u\r\n",
+					des_num, retry + 1, MAX96716_DPLL_MAX_RETRIES,
+					phy1_freq_expected, phy2_freq_expected, pll[0],
+					(pll[0] >> 4) & 1, (pll[0] >> 5) & 1,
+					(pll[0] >> 6) & 1, (pll[0] >> 7) & 1);
+			}
+		}
 		return RET_SUCCESS;
 	}
 
 	TRACE(MAX_96716_ERROR,
-		"%s: DPLL verification failed after %d retries\n",
-		__func__, MAX96716_DPLL_MAX_RETRIES);
-	return RET_SUCCESS;
+		"=== DPLL DES%d FAIL freq readback after %d retries PHY1 exp=0x%02x PHY2 exp=0x%02x\r\n",
+		des_num, MAX96716_DPLL_MAX_RETRIES,
+		phy1_freq_expected, phy2_freq_expected);
+	return RET_FAILURE;
 }
 
 /**************************************************************************
@@ -2113,6 +2129,7 @@ static void max96716_dump_cfg_once(desInterface *des)
 	u8 r1d00 = 0, r1e00 = 0, r308 = 0;
 	u8 a443 = 0, a444 = 0, a483 = 0, a484 = 0;
 	u8 r0001 = 0, r0004 = 0;
+	u8 r313 = 0;
 
 	if (des == NULL)
 		return;
@@ -2182,8 +2199,44 @@ static void max96716_dump_cfg_once(desInterface *des)
 
 	max96716_dump_ser_reg1(bus, des->link_a.serializer_alias_addr, d, "A");
 	max96716_dump_ser_reg1(bus, des->link_b.serializer_alias_addr, d, "B");
+
+	if (max96716_rd8(bus, addr, MAX96716_BACKTOP12_REG, &r313) != 0) {
+		TRACE(MAX_96716_ALWAYS,
+			"=== DESCFG DES%d CSI  0x0313 read FAIL\r\n", d);
+	} else {
+		TRACE(MAX_96716_ALWAYS,
+			"=== DESCFG DES%d CSI  0x0313=0x%02x CSI_OUT_EN=%u\r\n",
+			d, r313, (r313 >> 1) & 1);
+	}
 	TRACE(MAX_96716_ALWAYS,
 		"==================[ DESCFG END | DES%d ]====================\r\n", d);
+}
+
+/* Hold CSI output off through init, then enable it. DES3 and DES5 only. */
+static RESULT max96716_write_csi_out(u8 bus, u16 dev, u8 des_num, u8 val, const char *when)
+{
+	u8 wr[1];
+	u8 rd = 0;
+	RESULT st;
+
+	wr[0] = val;
+	st = HalWriteI2CReg(bus, dev, MAX96716_BACKTOP12_REG, 0x2, wr, 1);
+	if (st != RET_SUCCESS) {
+		TRACE(MAX_96716_ERROR,
+			"=== DESCFG DES%d CSI  0x0313 write 0x%02x FAIL (%s) err=%d\r\n",
+			des_num, val, when, st);
+		return st;
+	}
+	if (max96716_rd8(bus, dev, MAX96716_BACKTOP12_REG, &rd) != 0 || rd != val) {
+		TRACE(MAX_96716_ERROR,
+			"=== DESCFG DES%d CSI  0x0313 readback 0x%02x expected 0x%02x (%s)\r\n",
+			des_num, rd, val, when);
+		return RET_FAILURE;
+	}
+	TRACE(MAX_96716_ALWAYS,
+		"=== DESCFG DES%d CSI  0x0313=0x%02x CSI_OUT_EN=%u (%s)\r\n",
+		des_num, rd, (rd >> 1) & 1, when);
+	return RET_SUCCESS;
 }
 
 static RESULT max96716_Xylon_Deser_setup(desInterface *des)
@@ -2212,6 +2265,16 @@ static RESULT max96716_Xylon_Deser_setup(desInterface *des)
 		TRACE(MAX_96716_ALWAYS,
 			"=== DESR[init] DES%d  writing init table: %d entries (bus=%d addr=0x%x)\r\n",
 			des->Port_DES_index + 1, (int)len, i2cBusId, Deser_addr);
+
+		if (des->Port_DES_index == PDB_DES_DES3 ||
+		    des->Port_DES_index == PDB_DES_DES5) {
+			Status = max96716_write_csi_out(i2cBusId, Deser_addr,
+					des->Port_DES_index + 1,
+					MAX96716_CSI_OUT_DISABLE,
+					"held off before init table");
+			if (Status != RET_SUCCESS)
+				return Status;
+		}
 
 		for (reg_idx = 0; reg_idx < len; reg_idx++) {
 			if ((Deserializer_initialization + reg_idx)->addr == MAX929X_TABLE_END)
@@ -2273,13 +2336,24 @@ static RESULT max96716_Xylon_Deser_setup(desInterface *des)
 			des->Port_DES_index + 1);
 		max96716_dump_link_status(des, "post_e5reset");
 
-		/* DPLL lock verification with retry logic */
-		Status = max96716_dpll_reset_and_verify(i2cBusId, Deser_addr);
-		if (Status != RET_SUCCESS) {
-			TRACE(MAX_96716_WARNING,
-				"DPLL verify returned non-success for Des-%d, "
-				"continuing init\n",
+		/* DPLL frequency readback. Failure stops setup before CSI enable. */
+		Status = max96716_dpll_reset_and_verify(i2cBusId, Deser_addr,
 				des->Port_DES_index + 1);
+		if (Status != RET_SUCCESS) {
+			TRACE(MAX_96716_ERROR,
+				"=== DPLL DES%d FAIL  setup stopped before CSI enable\r\n",
+				des->Port_DES_index + 1);
+			return Status;
+		}
+
+		if (des->Port_DES_index == PDB_DES_DES3 ||
+		    des->Port_DES_index == PDB_DES_DES5) {
+			Status = max96716_write_csi_out(i2cBusId, Deser_addr,
+					des->Port_DES_index + 1,
+					MAX96716_CSI_OUT_ENABLE,
+					"enabled after DPLL verify");
+			if (Status != RET_SUCCESS)
+				return Status;
 		}
 
 		des->des_state = in_init;
