@@ -2197,9 +2197,6 @@ static void max96716_dump_cfg_once(desInterface *des)
 			r0004, max96716_gmsl_rx(r0004));
 	}
 
-	max96716_dump_ser_reg1(bus, des->link_a.serializer_alias_addr, d, "A");
-	max96716_dump_ser_reg1(bus, des->link_b.serializer_alias_addr, d, "B");
-
 	if (max96716_rd8(bus, addr, MAX96716_BACKTOP12_REG, &r313) != 0) {
 		TRACE(MAX_96716_ALWAYS,
 			"=== DESCFG DES%d CSI  0x0313 read FAIL\r\n", d);
