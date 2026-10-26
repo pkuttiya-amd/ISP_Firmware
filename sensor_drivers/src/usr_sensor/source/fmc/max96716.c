@@ -2209,7 +2209,7 @@ static void max96716_dump_cfg_once(desInterface *des)
 		"==================[ DESCFG END | DES%d ]====================\r\n", d);
 }
 
-/* Hold CSI output off through init, then enable it. DES3 and DES5 only. */
+/* Hold CSI output off through init, then enable it. DES2, DES3, and DES5. */
 static RESULT max96716_write_csi_out(u8 bus, u16 dev, u8 des_num, u8 val, const char *when)
 {
 	u8 wr[1];
@@ -2263,7 +2263,8 @@ static RESULT max96716_Xylon_Deser_setup(desInterface *des)
 			"=== DESR[init] DES%d  writing init table: %d entries (bus=%d addr=0x%x)\r\n",
 			des->Port_DES_index + 1, (int)len, i2cBusId, Deser_addr);
 
-		if (des->Port_DES_index == PDB_DES_DES3 ||
+		if (des->Port_DES_index == PDB_DES_DES2 ||
+		    des->Port_DES_index == PDB_DES_DES3 ||
 		    des->Port_DES_index == PDB_DES_DES5) {
 			Status = max96716_write_csi_out(i2cBusId, Deser_addr,
 					des->Port_DES_index + 1,
@@ -2343,7 +2344,8 @@ static RESULT max96716_Xylon_Deser_setup(desInterface *des)
 			return Status;
 		}
 
-		if (des->Port_DES_index == PDB_DES_DES3 ||
+		if (des->Port_DES_index == PDB_DES_DES2 ||
+		    des->Port_DES_index == PDB_DES_DES3 ||
 		    des->Port_DES_index == PDB_DES_DES5) {
 			Status = max96716_write_csi_out(i2cBusId, Deser_addr,
 					des->Port_DES_index + 1,
