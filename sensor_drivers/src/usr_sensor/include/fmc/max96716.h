@@ -118,7 +118,8 @@ RegI2CT max96716_Des1_init[] = {
 	{0x1D00, 0xF5},
 	{0x1E00, 0xF5},
 	{MAX929X_TABLE_WAIT, MAX96716_DPLL_LOCK_WAIT_MS},
-	{0x0331, 0xF0},  /* MIPI_PHY1 HS timing (t_hs_prep/przero); null-effect, retained from commit 2 */
+	{0x0331, 0xF1},  /* t_clk_przero=01: clock prepare+zero 306 ns -> 600 ns; data-lane fields unchanged */
+	{0x0335, 0xC0},  /* t_clk_prep=11: clock prepare 40 ns -> 60 ns; polarity maps left at reset */
 	{0x1449, 0xF5},  /* errata #10: RLMS49 ErrChPwrUp=1, force Error Channel A always-on (Required for 6Gbps multi-link) */
 	{0x1549, 0xF5},  /* errata #10: force Error Channel B always-on */
 	{0x0161, 0x31},
@@ -184,7 +185,8 @@ RegI2CT max96716_Des2_init[] = {
 	{0x1D00, 0xF5},
 	{0x1E00, 0xF5},
 	{MAX929X_TABLE_WAIT, MAX96716_DPLL_LOCK_WAIT_MS},
-	{0x0331, 0xF0},  /* MIPI_PHY1 HS timing (t_hs_prep/przero); null-effect, retained from commit 2 */
+	{0x0331, 0xF1},  /* t_clk_przero=01: clock prepare+zero 306 ns -> 600 ns; data-lane fields unchanged */
+	{0x0335, 0xC0},  /* t_clk_prep=11: clock prepare 40 ns -> 60 ns; polarity maps left at reset */
 	{0x1449, 0xF5},  /* errata #10: RLMS49 ErrChPwrUp=1, force Error Channel A always-on (Required for 6Gbps multi-link) */
 	{0x1549, 0xF5},  /* errata #10: force Error Channel B always-on */
 	{0x0161, 0x31},
@@ -234,62 +236,6 @@ RegI2CT max96716_Des3_init[] = {
 	{0x1518, 0x07}, {0x151F, 0xC2}, {0x158C, 0x20}, {0x1598, 0xC0},
 	{0x1546, 0x01}, {0x1545, 0x81}, {0x150B, 0x44}, {0x150A, 0x08},
 	{0x1531, 0x18}, {0x1521, 0x08}, {0x15A5, 0x70},
-#ifdef RGBIR_MODE
-	{MAX929X_TABLE_WAIT, MAX929X_TABLE_WAIT_MS},
-	{0x0050, 0x00},
-	{0x0051, 0x01},
-	{0x0052, 0x02},
-	{0x0053, 0x03},
-	/* DPLL soft-reset sequence: assert reset before freq change */
-	{0x1D00, 0xF4},
-	{0x1E00, 0xF4},
-	{MAX929X_TABLE_WAIT, MAX96716_DPLL_RESET_WAIT_MS},
-	{0x0320, 0x34},
-	{0x0323, 0x20},
-	/* Release DPLL soft-reset and wait for lock */
-	{0x1D00, 0xF5},
-	{0x1E00, 0xF5},
-	{MAX929X_TABLE_WAIT, MAX96716_DPLL_LOCK_WAIT_MS},
-	{0x0331, 0xF0},  /* MIPI_PHY1 HS timing (t_hs_prep/przero); null-effect, retained from commit 2 */
-	{0x1449, 0xF5},  /* errata #10: RLMS49 ErrChPwrUp=1, force Error Channel A always-on (Required for 6Gbps multi-link) */
-	{0x1549, 0xF5},  /* errata #10: force Error Channel B always-on */
-	{0x0316, 0xAC},
-	{0x0317, 0xBB},
-	{0x0318, 0xB0},
-	{0x0319, 0x6A},
-	{0x0313, 0x62},
-	{0x031A, 0x30},
-	{0x0333, 0x4E},
-	{0x040A, 0xD0},
-	{0x044A, 0xD0},
-	{0x048A, 0xD0},
-	{0x04CA, 0xD0},
-	{0x044B, 0x07},
-	{0x046D, 0x15},
-	{0x044D, 0x2B},
-	{0x044E, 0x2B},
-	{0x044F, 0x00},
-	{0x0450, 0x00},
-	{0x0451, 0x01},
-	{0x0452, 0x01},
-	{0x048B, 0x07},
-	{0x04AD, 0x15},
-	{0x048D, 0x2C},
-	{0x048E, 0x6C},
-	{0x048F, 0x00},
-	{0x0490, 0x40},
-	{0x0491, 0x01},
-	{0x0492, 0x41},
-	/* MIPI D-PHY TX de-skew (Required >1.5Gbps/lane per MAX96716A UG "MIPI D-PHY Deskew Settings"):
-	   auto-initial ON, periodic OFF. Periodic deskew is disabled for the SoT-sync experiment. */
-	{0x0443, 0x81},  /* DESKEW_INIT PHY A: auto-initial deskew ON (bit7=1), initial width 2x32k UI (bits[2:0]=001) */
-	{0x0444, 0x11},  /* DESKEW_PER PHY A: periodic deskew OFF (bit7=0); other bits unchanged */
-	{0x0483, 0x81},  /* DESKEW_INIT PHY B */
-	{0x0484, 0x11},  /* DESKEW_PER PHY B: periodic deskew OFF (bit7=0) */
-	{MAX929X_TABLE_WAIT, MAX929X_TABLE_WAIT_MS},
-	{MAX929X_TABLE_END, 0}
-
-#else
 	{MAX929X_TABLE_WAIT, MAX929X_TABLE_WAIT_MS},
 	/* DPLL soft-reset sequence: assert reset before freq change */
 	{0x1D00, 0xF4},
@@ -301,7 +247,8 @@ RegI2CT max96716_Des3_init[] = {
 	{0x1D00, 0xF5},
 	{0x1E00, 0xF5},
 	{MAX929X_TABLE_WAIT, MAX96716_DPLL_LOCK_WAIT_MS},
-	{0x0331, 0xF0},  /* MIPI_PHY1 HS timing (t_hs_prep/przero); null-effect, retained from commit 2 */
+	{0x0331, 0xF1},  /* t_clk_przero=01: clock prepare+zero 306 ns -> 600 ns; data-lane fields unchanged */
+	{0x0335, 0xC0},  /* t_clk_prep=11: clock prepare 40 ns -> 60 ns; polarity maps left at reset */
 	{0x1449, 0xF5},  /* errata #10: RLMS49 ErrChPwrUp=1, force Error Channel A always-on (Required for 6Gbps multi-link) */
 	{0x1549, 0xF5},  /* errata #10: force Error Channel B always-on */
 	{0x0161, 0x31},
@@ -338,7 +285,6 @@ RegI2CT max96716_Des3_init[] = {
 	{0x0484, 0x11},  /* DESKEW_PER PHY B: periodic deskew OFF (bit7=0) */
 	{MAX929X_TABLE_WAIT, MAX929X_TABLE_WAIT_MS},
 	{MAX929X_TABLE_END, 0}
-#endif
 };
 
 RegI2CT max96716_Des4_init[] = {
@@ -353,7 +299,8 @@ RegI2CT max96716_Des4_init[] = {
 	{0x1D00, 0xF5},
 	{0x1E00, 0xF5},
 	{MAX929X_TABLE_WAIT, MAX96716_DPLL_LOCK_WAIT_MS},
-	{0x0331, 0xF0},  /* MIPI_PHY1 HS timing (t_hs_prep/przero); null-effect, retained from commit 2 */
+	{0x0331, 0xF1},  /* t_clk_przero=01: clock prepare+zero 306 ns -> 600 ns; data-lane fields unchanged */
+	{0x0335, 0xC0},  /* t_clk_prep=11: clock prepare 40 ns -> 60 ns; polarity maps left at reset */
 	{0x1449, 0xF5},  /* errata #10: RLMS49 ErrChPwrUp=1, force Error Channel A always-on (Required for 6Gbps multi-link) */
 	{0x1549, 0xF5},  /* errata #10: force Error Channel B always-on */
 	{0x0161, 0x31},
@@ -419,7 +366,8 @@ RegI2CT max96716_Des5_init[] = {
 	{0x1D00, 0xF5},
 	{0x1E00, 0xF5},
 	{MAX929X_TABLE_WAIT, MAX96716_DPLL_LOCK_WAIT_MS},
-	{0x0331, 0xF0},  /* MIPI_PHY1 HS timing (t_hs_prep/przero); null-effect, retained from commit 2 */
+	{0x0331, 0xF1},  /* t_clk_przero=01: clock prepare+zero 306 ns -> 600 ns; data-lane fields unchanged */
+	{0x0335, 0xC0},  /* t_clk_prep=11: clock prepare 40 ns -> 60 ns; polarity maps left at reset */
 	{0x1449, 0xF5},  /* errata #10: RLMS49 ErrChPwrUp=1, force Error Channel A always-on (Required for 6Gbps multi-link) */
 	{0x1549, 0xF5},  /* errata #10: force Error Channel B always-on */
 	{0x0161, 0x31},
@@ -474,7 +422,8 @@ RegI2CT max96716_Des6_init[] = {
 	{0x1D00, 0xF5},
 	{0x1E00, 0xF5},
 	{MAX929X_TABLE_WAIT, MAX96716_DPLL_LOCK_WAIT_MS},
-	{0x0331, 0xF0},  /* MIPI_PHY1 HS timing (t_hs_prep/przero); null-effect, retained from commit 2 */
+	{0x0331, 0xF1},  /* t_clk_przero=01: clock prepare+zero 306 ns -> 600 ns; data-lane fields unchanged */
+	{0x0335, 0xC0},  /* t_clk_prep=11: clock prepare 40 ns -> 60 ns; polarity maps left at reset */
 	{0x1449, 0xF5},  /* errata #10: RLMS49 ErrChPwrUp=1, force Error Channel A always-on (Required for 6Gbps multi-link) */
 	{0x1549, 0xF5},  /* errata #10: force Error Channel B always-on */
 	{0x0161, 0x31},
@@ -535,7 +484,8 @@ RegI2CT max96716_Des7_init[] = {
 	{0x1D00, 0xF5},
 	{0x1E00, 0xF5},
 	{MAX929X_TABLE_WAIT, MAX96716_DPLL_LOCK_WAIT_MS},
-	{0x0331, 0xF0},  /* MIPI_PHY1 HS timing (t_hs_prep/przero); null-effect, retained from commit 2 */
+	{0x0331, 0xF1},  /* t_clk_przero=01: clock prepare+zero 306 ns -> 600 ns; data-lane fields unchanged */
+	{0x0335, 0xC0},  /* t_clk_prep=11: clock prepare 40 ns -> 60 ns; polarity maps left at reset */
 	{0x1449, 0xF5},  /* errata #10: RLMS49 ErrChPwrUp=1, force Error Channel A always-on (Required for 6Gbps multi-link) */
 	{0x1549, 0xF5},  /* errata #10: force Error Channel B always-on */
 	{0x0161, 0x31},
@@ -591,7 +541,8 @@ RegI2CT max96716_Des2_revserse_splitter_init[] = {
 	{0x1D00, 0xF5},
 	{0x1E00, 0xF5},
 	{MAX929X_TABLE_WAIT, MAX96716_DPLL_LOCK_WAIT_MS},
-	{0x0331, 0xF0},  /* MIPI_PHY1 HS timing (t_hs_prep/przero); null-effect, retained from commit 2 */
+	{0x0331, 0xF1},  /* t_clk_przero=01: clock prepare+zero 306 ns -> 600 ns; data-lane fields unchanged */
+	{0x0335, 0xC0},  /* t_clk_prep=11: clock prepare 40 ns -> 60 ns; polarity maps left at reset */
 	{0x1449, 0xF5},  /* errata #10: RLMS49 ErrChPwrUp=1, force Error Channel A always-on (Required for 6Gbps multi-link) */
 	{0x1549, 0xF5},  /* errata #10: force Error Channel B always-on */
 	{0x0316, 0xAC},
