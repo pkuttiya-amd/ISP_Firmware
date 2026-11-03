@@ -214,10 +214,10 @@ desInterface max96716_des_arr[DS_MAX] = {
  */
 const core_des_mapping_t max96716_core_des_map[] = {
 	/*
-	 * Core 6: Manages 3 deserializers
-	 * (DS_ONE, DS_TWO, DS_THREE) on I2C bus 1
+	 * Core 6: camera pair 0 is DES1 only, on AXI I2C bus 1
+	 * (same bus as DES2; DES2 is no longer initialized here).
 	 */
-	{6, 2, {DS_ONE, DS_TWO}, {1, 1}}, /* 4+1*/
+	{6, 1, {DS_ONE}, {1}},
 
 	/* Core 7: Manages 1 deserializer (DS_FOUR) on I2C bus 2 */
 	{7, 2, {DS_THREE, DS_FOUR}, {2, 2}}, /* 4+1*/
@@ -2134,7 +2134,8 @@ static void max96716_dump_cfg_once(desInterface *des)
 	if (des == NULL)
 		return;
 	idx = des->Port_DES_index;
-	if (idx != PDB_DES_DES2 && idx != PDB_DES_DES3 && idx != PDB_DES_DES5)
+	if (idx != PDB_DES_DES1 && idx != PDB_DES_DES2 &&
+	    idx != PDB_DES_DES3 && idx != PDB_DES_DES5)
 		return;
 
 	bus = GetI2cBusIdForDes(idx);
@@ -2263,7 +2264,8 @@ static RESULT max96716_Xylon_Deser_setup(desInterface *des)
 			"=== DESR[init] DES%d  writing init table: %d entries (bus=%d addr=0x%x)\r\n",
 			des->Port_DES_index + 1, (int)len, i2cBusId, Deser_addr);
 
-		if (des->Port_DES_index == PDB_DES_DES2 ||
+		if (des->Port_DES_index == PDB_DES_DES1 ||
+		    des->Port_DES_index == PDB_DES_DES2 ||
 		    des->Port_DES_index == PDB_DES_DES3 ||
 		    des->Port_DES_index == PDB_DES_DES5) {
 			Status = max96716_write_csi_out(i2cBusId, Deser_addr,
@@ -2344,7 +2346,8 @@ static RESULT max96716_Xylon_Deser_setup(desInterface *des)
 			return Status;
 		}
 
-		if (des->Port_DES_index == PDB_DES_DES2 ||
+		if (des->Port_DES_index == PDB_DES_DES1 ||
+		    des->Port_DES_index == PDB_DES_DES2 ||
 		    des->Port_DES_index == PDB_DES_DES3 ||
 		    des->Port_DES_index == PDB_DES_DES5) {
 			Status = max96716_write_csi_out(i2cBusId, Deser_addr,

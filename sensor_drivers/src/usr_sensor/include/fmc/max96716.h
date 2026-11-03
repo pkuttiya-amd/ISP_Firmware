@@ -108,6 +108,19 @@
 
 RegI2CT max96716_Des1_init[] = {
 	{MAX929X_TABLE_WAIT, MAX929X_TABLE_WAIT_MS},
+	/* Errata #5 (MAX96716A errata rev10): GMSL Rx robust-operation config.
+	 * RLMSnn -> 0x14nn (link A) / 0x15nn (link B); both links (reverse-splitter).
+	 * RLMS18/1F are 6Gbps-only (required here: errata #10 6Gbps multilink active).
+	 * A one-shot link reset is issued in code after this table (write-only table
+	 * cannot RMW CTRL0/CTRL1). */
+	{0x143F, 0x3D}, {0x143E, 0xFD}, {0x14AD, 0x68}, {0x14AC, 0xA8},
+	{0x1418, 0x07}, {0x141F, 0xC2}, {0x148C, 0x20}, {0x1498, 0xC0},
+	{0x1446, 0x01}, {0x1445, 0x81}, {0x140B, 0x44}, {0x140A, 0x08},
+	{0x1431, 0x18}, {0x1421, 0x08}, {0x14A5, 0x70},
+	{0x153F, 0x3D}, {0x153E, 0xFD}, {0x15AD, 0x68}, {0x15AC, 0xA8},
+	{0x1518, 0x07}, {0x151F, 0xC2}, {0x158C, 0x20}, {0x1598, 0xC0},
+	{0x1546, 0x01}, {0x1545, 0x81}, {0x150B, 0x44}, {0x150A, 0x08},
+	{0x1531, 0x18}, {0x1521, 0x08}, {0x15A5, 0x70},
 	/* DPLL soft-reset sequence: assert reset before freq change */
 	{0x1D00, 0xF4},
 	{0x1E00, 0xF4},
@@ -149,16 +162,14 @@ RegI2CT max96716_Des1_init[] = {
 	{0x0491, 0x01},
 	{0x0492, 0x41},
 	/* MIPI D-PHY TX de-skew (Required >1.5Gbps/lane per MAX96716A UG "MIPI D-PHY Deskew Settings"):
-	   auto-initial + periodic. Per the UG the MIPI Tx clock lane starts automatically (continuous HS)
-	   when deskew is active, so this also addresses the clock-lane ErrCtrl (CL_STATUS bit5). */
+	   auto-initial ON, periodic OFF. Periodic deskew is disabled for the SoT-sync experiment. */
 	{0x0443, 0x81},  /* DESKEW_INIT PHY A: auto-initial deskew ON (bit7=1), initial width 2x32k UI (bits[2:0]=001) */
-	{0x0444, 0x91},  /* DESKEW_PER  PHY A: periodic deskew ON (bit7=1), every 2 frames (bits[5:3]=010) */
+	{0x0444, 0x11},  /* DESKEW_PER PHY A: periodic deskew OFF (bit7=0); other bits unchanged */
 	{0x0483, 0x81},  /* DESKEW_INIT PHY B */
-	{0x0484, 0x91},  /* DESKEW_PER  PHY B */
+	{0x0484, 0x11},  /* DESKEW_PER PHY B: periodic deskew OFF (bit7=0) */
 	{MAX929X_TABLE_WAIT, MAX929X_TABLE_WAIT_MS},
 	{MAX929X_TABLE_END, 0}
 };
-
 
 RegI2CT max96716_Des2_init[] = {
 	{MAX929X_TABLE_WAIT, MAX929X_TABLE_WAIT_MS},

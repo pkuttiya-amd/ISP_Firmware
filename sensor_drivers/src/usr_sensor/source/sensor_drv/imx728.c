@@ -1785,8 +1785,8 @@ static RESULT IMX728_IsiSetStreamingIss(IsiSensorHandle_t handle, bool_t mode)
 		{
 			int des_id = MAPPING_INPIPE_TO_DES_ID(pIMX728Ctx->sensorDevId);
 
-			if (des_id == PDB_DES_DES2 || des_id == PDB_DES_DES3 ||
-			    des_id == PDB_DES_DES5) {
+			if (des_id == PDB_DES_DES1 || des_id == PDB_DES_DES2 ||
+			    des_id == PDB_DES_DES3 || des_id == PDB_DES_DES5) {
 				TRACE(IMX728_ALWAYS,
 				      "Start sensor streaming: pipe %u DES%d DPLL, deskew, link reset, and serializer init are done\r\n",
 				      pIMX728Ctx->sensorDevId, des_id + 1);
