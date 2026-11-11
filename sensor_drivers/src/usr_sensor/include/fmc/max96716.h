@@ -114,7 +114,7 @@ RegI2CT max96716_Des1_init[] = {
 RegI2CT max96716_Des2_init[] = {
 	{MAX929X_TABLE_WAIT, MAX929X_TABLE_WAIT_MS},
 	{0x0161, 0x31},
-	{0x0320, 0x2f},
+	{0x0320, 0x34},
 	{0x0323, 0x2f},
 	{0x0316, 0x80},
 	{0x0317, 0xBC},
