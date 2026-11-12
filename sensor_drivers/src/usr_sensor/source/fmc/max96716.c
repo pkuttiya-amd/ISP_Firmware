@@ -988,7 +988,7 @@ RESULT max96716_probe_if_links(u8 Deser_addr, desInterface *desIface)
 	else
 		desIface->link_type = LINK_B;
 
-	TRACE(MAX_96716_ALWAYS,
+	TRACE(MAX_96716_INFO,
 		"=== DESR[probe] DES%d  linkA_lock=%d linkB_lock=%d type=%d\r\n",
 		desIface->Port_DES_index + 1, dev_a, dev_b, desIface->link_type);
 
@@ -1148,7 +1148,7 @@ static RESULT max96716_Remapping_des_addr(desInterface *desIface)
 		TRACE(MAX_96716_INFO, "A: GMSL1_EN =%x\n\r", read_data[0]);
 
 		while (1) {
-			TRACE(MAX_96716_ALWAYS, "Poll for Lock...on link-A \r");
+			TRACE(MAX_96716_INFO, "Poll for Lock...on link-A \r");
 			osSleep(xDelay);
 
 			reg_addr = CTRL3_REG;
@@ -1159,7 +1159,7 @@ static RESULT max96716_Remapping_des_addr(desInterface *desIface)
 				return Status;
 			}
 
-			TRACE(MAX_96716_ALWAYS, "CTRL3_REG =%x LOCKED_bit3=%d (link-A GMSL)\r\n", read_data[0], (read_data[0] >> LOCKED) & 1);
+			TRACE(MAX_96716_INFO, "CTRL3_REG =%x LOCKED_bit3=%d (link-A GMSL)\r\n", read_data[0], (read_data[0] >> LOCKED) & 1);
 
 			if ((read_data[0] & (1<<LOCKED)) == (1<<LOCKED))
 				break;
@@ -1359,7 +1359,7 @@ static RESULT max96716_Remapping_des_addr(desInterface *desIface)
 		}
 		TRACE(MAX_96716_INFO, "Link B after RST: 0x%x\n", read_data[0]);
 		while (1) {
-			TRACE(MAX_96716_ALWAYS, "Poll for Lock...on link-B \r");
+			TRACE(MAX_96716_INFO, "Poll for Lock...on link-B \r");
 			osSleep(xDelay);
 
 			reg_addr = CTRL9_REG;
@@ -1370,7 +1370,7 @@ static RESULT max96716_Remapping_des_addr(desInterface *desIface)
 				return Status;
 			}
 
-			TRACE(MAX_96716_ALWAYS, "CTRL9_REG =%x LOCKED_bit3=%d (link-B GMSL)\r\n", read_data[0], (read_data[0] >> LOCKED) & 1);
+			TRACE(MAX_96716_INFO, "CTRL9_REG =%x LOCKED_bit3=%d (link-B GMSL)\r\n", read_data[0], (read_data[0] >> LOCKED) & 1);
 
 			if ((read_data[0]&(1<<LOCKED)) == (1<<LOCKED))
 				break;
@@ -1811,12 +1811,12 @@ static RESULT max96716_dpll_reset_and_verify(u8 i2cBusId, u16 Deser_addr, u8 des
 			u8 pll[1] = {0};
 
 			if (HalReadI2CReg(i2cBusId, Deser_addr, 0x0308, 0x2, pll, 1) != RET_SUCCESS) {
-				TRACE(MAX_96716_ALWAYS,
+				TRACE(MAX_96716_INFO,
 					"=== DPLL DES%d PASS attempt %d/%d PHY1=0x%02x PHY2=0x%02x BACKTOP1 read FAIL\r\n",
 					des_num, retry + 1, MAX96716_DPLL_MAX_RETRIES,
 					phy1_freq_expected, phy2_freq_expected);
 			} else {
-				TRACE(MAX_96716_ALWAYS,
+				TRACE(MAX_96716_INFO,
 					"=== DPLL DES%d PASS attempt %d/%d PHY1=0x%02x PHY2=0x%02x BACKTOP1=0x%02x pllX=%u pllY=%u pllZ=%u pllU=%u\r\n",
 					des_num, retry + 1, MAX96716_DPLL_MAX_RETRIES,
 					phy1_freq_expected, phy2_freq_expected, pll[0],
@@ -1987,50 +1987,50 @@ void max96716_dump_link_status(desInterface *des, const char *tag)
 	if (HalReadI2CReg(i2cBusId, Deser_addr, 0x0023, 0x2, rd, 1) == RET_SUCCESS) decB1 = rd[0];
 	if (HalReadI2CReg(i2cBusId, Deser_addr, 0x0024, 0x2, rd, 1) == RET_SUCCESS) idle1 = rd[0];
 
-	TRACE(MAX_96716_ALWAYS,
+	TRACE(MAX_96716_INFO,
 		"\r\n===================[ DESR DUMP | %s | DES%d ]===================\r\n",
 		tag, d);
-	TRACE(MAX_96716_ALWAYS,
+	TRACE(MAX_96716_INFO,
 		"=== DESR[%s] DES%d GMSL  lockA=%d lockB=%d  decA=%d(+%d) decB=%d(+%d) idle=%d(+%d) pkt=%d\r\n",
 		tag, d,
 		(ctrl3 >> LOCKED) & 1, (ctrl9 >> LOCKED) & 1,
 		decA0, (u8)(decA1 - decA0), decB0, (u8)(decB1 - decB0),
 		idle0, (u8)(idle1 - idle0), pkt);
-	TRACE(MAX_96716_ALWAYS,
+	TRACE(MAX_96716_INFO,
 		"=== DESR[%s] DES%d MIPI  pllLK=0x%02x[X%d Y%d Z%d U%d] LMO_Y=%d LMO_Z=%d  vidLockY=%d vidLockZ=%d  txpkt=0x%02x | raw ctrl3=0x%02x bt11=0x%02x\r\n",
 		tag, d,
 		bt1, (bt1 >> 4) & 1, (bt1 >> 5) & 1, (bt1 >> 6) & 1, (bt1 >> 7) & 1,
 		(bt11 >> 1) & 1, (bt11 >> 2) & 1,
 		(vidy >> 6) & 1, (vidz >> 6) & 1,
 		txp, ctrl3, bt11);
-	TRACE(MAX_96716_ALWAYS,
+	TRACE(MAX_96716_INFO,
 		"=== DESR[%s] DES%d TXST  ctrlA(0x442)=0x%02x sync=%d lost=%d  ctrlB(0x482)=0x%02x sync=%d lost=%d  (controller, not per lane; lost clears on read)\r\n",
 		tag, d,
 		txstA, (txstA >> 1) & 1, (txstA >> 2) & 1,
 		txstB, (txstB >> 1) & 1, (txstB >> 2) & 1);
-	TRACE(MAX_96716_ALWAYS,
+	TRACE(MAX_96716_INFO,
 		"=== DESR[%s] DES%d LOCK  loss=%d (0x5013 b0, clear-on-read) lock_cfg=%d (0x3 b7: 0=GMSL lost, 1=MIPI output lost) raw=0x%02x\r\n",
 		tag, d, intr14 & 1, (reg3 >> 7) & 1, intr14);
-	TRACE(MAX_96716_ALWAYS,
+	TRACE(MAX_96716_INFO,
 		"=== DESR[%s] DES%d PHYPK phy0=%d phy1=%d phy2=%d phy3=%d (0x344/345 nibbles; 2x4 A=phy0+1 B=phy2+3) dup=0x%02x mode330=0x%02x\r\n",
 		tag, d,
 		phy01 & 0xF, (phy01 >> 4) & 0xF, phy23 & 0xF, (phy23 >> 4) & 0xF,
 		dupk, phy_mode);
-	TRACE(MAX_96716_ALWAYS,
+	TRACE(MAX_96716_INFO,
 		"=== DESR[%s] DES%d PIPE  vidOvY=%d vidOvZ=%d (0x11C/12E b7, clear-on-read) cmdOvY=%d cmdOvZ=%d (0x312 b5/b6)\r\n",
 		tag, d,
 		(vidovY >> 7) & 1, (vidovZ >> 7) & 1,
 		(bt11 >> 5) & 1, (bt11 >> 6) & 1);
-	TRACE(MAX_96716_ALWAYS,
+	TRACE(MAX_96716_INFO,
 		"=== DESR[%s] DES%d OVF   phyCP0_ovf=%d unf=%d phyCP1_ovf=%d unf=%d VID_OVF=%d (0x339-33C b0, 0x341 b0) | raw %02x %02x %02x %02x vid=0x%02x\r\n",
 		tag, d,
 		cp0o & 1, cp0u & 1, cp1o & 1, cp1u & 1, vidovf & 1,
 		cp0o, cp0u, cp1o, cp1u, vidovf);
-	TRACE(MAX_96716_ALWAYS,
+	TRACE(MAX_96716_INFO,
 		"=== DESR[%s] DES%d DSK   initA=0x%02x perA=0x%02x initB=0x%02x perB=0x%02x (autoA=%u perA=%u autoB=%u perB=%u, no deskew-done bit)\r\n",
 		tag, d, dskAi, dskAp, dskBi, dskBp,
 		(dskAi >> 7) & 1, (dskAp >> 7) & 1, (dskBi >> 7) & 1, (dskBp >> 7) & 1);
-	TRACE(MAX_96716_ALWAYS,
+	TRACE(MAX_96716_INFO,
 		"==================[ DESR END | %s | DES%d ]====================\r\n",
 		tag, d);
 }
@@ -2103,17 +2103,17 @@ static void max96716_dump_ser_reg1(u8 bus, u8 alias, u8 des_num, const char *lin
 	u8 v = 0;
 
 	if (alias == 0) {
-		TRACE(MAX_96716_ALWAYS,
+		TRACE(MAX_96716_INFO,
 			"=== DESCFG DES%d SER %s  no alias\r\n", des_num, link);
 		return;
 	}
 	if (max96716_rd8(bus, (u16)(alias >> 1), 0x0001, &v) != 0) {
-		TRACE(MAX_96716_ALWAYS,
+		TRACE(MAX_96716_INFO,
 			"=== DESCFG DES%d SER %s addr=0x%02x  reg0x0001 read FAIL\r\n",
 			des_num, link, alias);
 		return;
 	}
-	TRACE(MAX_96716_ALWAYS,
+	TRACE(MAX_96716_INFO,
 		"=== DESCFG DES%d SER %s addr=0x%02x  reg0x0001=0x%02x (raw at deser cfg_done, before serializer init table)\r\n",
 		des_num, link, alias, v);
 }
@@ -2144,15 +2144,15 @@ static void max96716_dump_cfg_once(desInterface *des)
 	addr = (u16)(des->des_alias_addr >> 1);
 	d = idx + 1;
 
-	TRACE(MAX_96716_ALWAYS,
+	TRACE(MAX_96716_INFO,
 		"==================[ DESCFG once | DES%d ]====================\r\n", d);
 
 	if (max96716_rd8(bus, addr, 0x0320, &r320) != 0 ||
 	    max96716_rd8(bus, addr, 0x0323, &r323) != 0) {
-		TRACE(MAX_96716_ALWAYS,
+		TRACE(MAX_96716_INFO,
 			"=== DESCFG DES%d LANE  0x0320/0x0323 read FAIL\r\n", d);
 	} else {
-		TRACE(MAX_96716_ALWAYS,
+		TRACE(MAX_96716_INFO,
 			"=== DESCFG DES%d LANE  A raw=0x%02x %uMbps frac=%u | B raw=0x%02x %uMbps frac=%u\r\n",
 			d, r320, max96716_lane_mbps(r320), (r320 >> 5) & 1,
 			r323, max96716_lane_mbps(r323), (r323 >> 5) & 1);
@@ -2163,10 +2163,10 @@ static void max96716_dump_cfg_once(desInterface *des)
 	    max96716_rd8(bus, addr, 0x1D00, &r1d00) != 0 ||
 	    max96716_rd8(bus, addr, 0x1E00, &r1e00) != 0 ||
 	    max96716_rd8(bus, addr, 0x0308, &r308) != 0) {
-		TRACE(MAX_96716_ALWAYS,
+		TRACE(MAX_96716_INFO,
 			"=== DESCFG DES%d PHY/PLL read FAIL\r\n", d);
 	} else {
-		TRACE(MAX_96716_ALWAYS,
+		TRACE(MAX_96716_INFO,
 			"=== DESCFG DES%d PHY   mode=0x%02x mipiphy1=0x%02x rstA=0x%02x rstB=0x%02x BACKTOP1=0x%02x pllX=%u pllY=%u pllZ=%u pllU=%u\r\n",
 			d, r330, r331, r1d00, r1e00, r308,
 			(r308 >> 4) & 1, (r308 >> 5) & 1,
@@ -2177,10 +2177,10 @@ static void max96716_dump_cfg_once(desInterface *des)
 	    max96716_rd8(bus, addr, 0x0444, &a444) != 0 ||
 	    max96716_rd8(bus, addr, 0x0483, &a483) != 0 ||
 	    max96716_rd8(bus, addr, 0x0484, &a484) != 0) {
-		TRACE(MAX_96716_ALWAYS,
+		TRACE(MAX_96716_INFO,
 			"=== DESCFG DES%d DSK  read FAIL\r\n", d);
 	} else {
-		TRACE(MAX_96716_ALWAYS,
+		TRACE(MAX_96716_INFO,
 			"=== DESCFG DES%d DSK   initA=0x%02x perA=0x%02x initB=0x%02x perB=0x%02x autoA=%u perA=%u autoB=%u perB=%u (expect auto=1 per=0)\r\n",
 			d, a443, a444, a483, a484,
 			(a443 >> 7) & 1, (a444 >> 7) & 1,
@@ -2189,24 +2189,24 @@ static void max96716_dump_cfg_once(desInterface *des)
 
 	if (max96716_rd8(bus, addr, 0x0001, &r0001) != 0 ||
 	    max96716_rd8(bus, addr, 0x0004, &r0004) != 0) {
-		TRACE(MAX_96716_ALWAYS,
+		TRACE(MAX_96716_INFO,
 			"=== DESCFG DES%d GMSL 0x0001/0x0004 read FAIL\r\n", d);
 	} else {
-		TRACE(MAX_96716_ALWAYS,
+		TRACE(MAX_96716_INFO,
 			"=== DESCFG DES%d GMSL  RX_RATE A raw=0x%02x %s | B raw=0x%02x %s (configured coax rate)\r\n",
 			d, r0001, max96716_gmsl_rx(r0001),
 			r0004, max96716_gmsl_rx(r0004));
 	}
 
 	if (max96716_rd8(bus, addr, MAX96716_BACKTOP12_REG, &r313) != 0) {
-		TRACE(MAX_96716_ALWAYS,
+		TRACE(MAX_96716_INFO,
 			"=== DESCFG DES%d CSI  0x0313 read FAIL\r\n", d);
 	} else {
-		TRACE(MAX_96716_ALWAYS,
+		TRACE(MAX_96716_INFO,
 			"=== DESCFG DES%d CSI  0x0313=0x%02x CSI_OUT_EN=%u\r\n",
 			d, r313, (r313 >> 1) & 1);
 	}
-	TRACE(MAX_96716_ALWAYS,
+	TRACE(MAX_96716_INFO,
 		"==================[ DESCFG END | DES%d ]====================\r\n", d);
 }
 
@@ -2231,7 +2231,7 @@ static RESULT max96716_write_csi_out(u8 bus, u16 dev, u8 des_num, u8 val, const 
 			des_num, rd, val, when);
 		return RET_FAILURE;
 	}
-	TRACE(MAX_96716_ALWAYS,
+	TRACE(MAX_96716_INFO,
 		"=== DESCFG DES%d CSI  0x0313=0x%02x CSI_OUT_EN=%u (%s)\r\n",
 		des_num, rd, (rd >> 1) & 1, when);
 	return RET_SUCCESS;
@@ -2260,7 +2260,7 @@ static RESULT max96716_Xylon_Deser_setup(desInterface *des)
 #endif
 		len = get_max96716_des_array(des, &Deserializer_initialization);
 
-		TRACE(MAX_96716_ALWAYS,
+		TRACE(MAX_96716_INFO,
 			"=== DESR[init] DES%d  writing init table: %d entries (bus=%d addr=0x%x)\r\n",
 			des->Port_DES_index + 1, (int)len, i2cBusId, Deser_addr);
 
@@ -2331,7 +2331,7 @@ static RESULT max96716_Xylon_Deser_setup(desInterface *des)
 			osSleep(MAX96716_DPLL_LOCK_WAIT_MS);
 		}
 
-		TRACE(MAX_96716_ALWAYS,
+		TRACE(MAX_96716_INFO,
 			"=== DESR[e5_reset] DES%d  errata#5 Rx config + one-shot link reset done\r\n",
 			des->Port_DES_index + 1);
 		max96716_dump_link_status(des, "post_e5reset");
@@ -2376,11 +2376,11 @@ static RESULT max96716_Xylon_Deser_setup(desInterface *des)
 						configMINIMAL_STACK_SIZE * 4, des,
 						tskIDLE_PRIORITY + 1, NULL) == pdPASS) {
 					monitor_started[mon_idx] = 1;
-					TRACE(MAX_96716_ALWAYS,
+					TRACE(MAX_96716_INFO,
 						"=== DESR[monitor] DES%d  periodic %us health task started\r\n",
 						mon_idx + 1, MAX96716_MONITOR_PERIOD_MS / 1000U);
 				} else {
-					TRACE(MAX_96716_ALWAYS,
+					TRACE(MAX_96716_INFO,
 						"=== DESR[monitor] DES%d  task create FAILED (heap?)\r\n",
 						mon_idx + 1);
 				}

@@ -36,7 +36,6 @@ CREATE_TRACER(IMX728_INFO, "IMX728: ", INFO, 1);
 CREATE_TRACER(IMX728_WARN, "IMX728: ", WARNING, 1);
 CREATE_TRACER(IMX728_ERROR, "IMX728: ", ERROR, 1);
 CREATE_TRACER(IMX728_DEBUG, "IMX728: ", INFO, 1);
-CREATE_TRACER(IMX728_ALWAYS, "IMX728: ", ALWAYS, 1);
 
 IsiSensorMode_t pimx728_mode_info[] = {
 	{
@@ -1787,7 +1786,7 @@ static RESULT IMX728_IsiSetStreamingIss(IsiSensorHandle_t handle, bool_t mode)
 
 			if (des_id == PDB_DES_DES1 || des_id == PDB_DES_DES2 ||
 			    des_id == PDB_DES_DES3 || des_id == PDB_DES_DES5) {
-				TRACE(IMX728_ALWAYS,
+				TRACE(IMX728_INFO,
 				      "Start sensor streaming: pipe %u DES%d DPLL, deskew, link reset, and serializer init are done\r\n",
 				      pIMX728Ctx->sensorDevId, des_id + 1);
 			}
