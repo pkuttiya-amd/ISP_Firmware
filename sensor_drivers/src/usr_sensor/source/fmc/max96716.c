@@ -214,10 +214,10 @@ desInterface max96716_des_arr[DS_MAX] = {
  */
 const core_des_mapping_t max96716_core_des_map[] = {
 	/*
-	 * Core 6: camera pair 0 is DES1 only, on AXI I2C bus 1
-	 * (same bus as DES2; DES2 is no longer initialized here).
+	 * Core 6: DES1 (x1x4 design, MIPI1) and DES2 (x1x2x2 design, MIPI2),
+	 * both on AXI I2C bus 1.
 	 */
-	{6, 1, {DS_ONE}, {1}},
+	{6, 2, {DS_ONE, DS_TWO}, {1, 1}},
 
 	/* Core 7: Manages 1 deserializer (DS_FOUR) on I2C bus 2 */
 	{7, 2, {DS_THREE, DS_FOUR}, {2, 2}}, /* 4+1*/
